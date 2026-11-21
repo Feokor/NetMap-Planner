@@ -45,7 +45,7 @@ export interface Palette {
   shadow: string;
 }
 
-const PALETTES: Record<ThemeName, Palette> = {
+export const PALETTES: Record<ThemeName, Palette> = {
   dark: {
     background: '#0b1220',
     grid: 'rgba(148, 163, 184, 0.10)',

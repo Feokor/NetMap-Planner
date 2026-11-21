@@ -17,7 +17,9 @@ import {
   uid,
 } from '../core/project';
 import { t } from '../i18n';
-import { Modal } from '../ui/Modal';import {
+import { storage } from '../app/storage';
+import { Modal } from '../ui/Modal';
+import {
   IconArrow,
   IconCircle,
   IconCursor,
@@ -25,9 +27,11 @@ import { Modal } from '../ui/Modal';import {
   IconEyeOff,
   IconFit,
   IconLayers,
+  IconLayout,
   IconLine,
   IconLink,
   IconLock,
+  IconMap,
   IconMore,
   IconRedo,
   IconSquare,
@@ -58,6 +62,8 @@ import {
   worldToScreen,
   zoomAt,
 } from './geometry';
+import { Minimap } from './Minimap';
+import { autoLayout } from './layout';
 import { linkPoints } from './links';
 import {
   MEDIA_COLORS,
@@ -182,6 +188,7 @@ export function CanvasView({
   const [groupOpen, setGroupOpen] = useState<string | null>(null);
   const [hoverTool, setHoverTool] = useState<CanvasTool | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [minimapOpen, setMinimapOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
   /** Выбор инструмента удержанием: попап открыт, палец ещё на экране. */
@@ -272,6 +279,12 @@ export function CanvasView({
       attributeFilter: ['data-theme'],
     });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    void storage.get<boolean>('ui.minimap').then((value) => {
+      if (value) setMinimapOpen(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -1018,6 +1031,46 @@ export function CanvasView({
     else setView({ x: size.width / 2, y: size.height / 2, zoom: 1 });
   };
 
+  const runAutoLayout = () => {
+    if (doc.devices.length === 0) return;
+    if (!window.confirm(t('canvas.autoLayout.confirm'))) return;
+    const positions = autoLayout(doc, { grid: doc.settings.grid });
+    if (positions.size === 0) return;
+    onChange((current) => ({
+      ...current,
+      devices: current.devices.map((device) => {
+        const point = positions.get(device.id);
+        if (!point) return device;
+        return {
+          ...device,
+          canvas: { ...(device.canvas ?? { x: 0, y: 0 }), x: point.x, y: point.y },
+        };
+      }),
+    }));
+    const rects = doc.devices
+      .map((device) => positions.get(device.id))
+      .filter((point): point is Point => point != null)
+      .map((point) => ({ x: point.x, y: point.y, width: NODE_WIDTH, height: NODE_HEIGHT }));
+    for (const annotation of doc.annotations) rects.push(annotationRect(annotation));
+    setSelection([]);
+    setSelectedLinkId(null);
+    setView(fitViewport(rects, size.width, size.height, 72));
+  };
+
+  const navigateMinimap = (world: Point) => {
+    setView((current) => ({
+      ...current,
+      x: size.width / 2 - world.x * current.zoom,
+      y: size.height / 2 - world.y * current.zoom,
+    }));
+  };
+
+  const toggleMinimap = () => {
+    const next = !minimapOpen;
+    setMinimapOpen(next);
+    void storage.set('ui.minimap', next);
+  };
+
   const toolButton = (tool: CanvasTool, icon: JSX.Element, label: string) => (
     <button
       type="button"
@@ -1435,6 +1488,25 @@ export function CanvasView({
               >
                 ⌗ {t('canvas.snap')}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  runAutoLayout();
+                }}
+              >
+                <IconLayout size={14} /> {t('canvas.autoLayout')}
+              </button>
+              <button
+                type="button"
+                class={minimapOpen ? 'active' : ''}
+                onClick={() => {
+                  setMenuOpen(false);
+                  toggleMinimap();
+                }}
+              >
+                <IconMap size={14} /> {t('canvas.minimap')}
+              </button>
             </div>
           )}
         </div>
@@ -1621,6 +1693,16 @@ export function CanvasView({
             <IconFit size={16} />
           </button>
         </div>
+
+        {minimapOpen && (
+          <Minimap
+            doc={doc}
+            view={view}
+            size={size}
+            theme={theme}
+            onNavigate={navigateMinimap}
+          />
+        )}
       </div>
 
       <div class="canvas-bottom">

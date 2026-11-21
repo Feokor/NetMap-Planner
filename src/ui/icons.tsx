@@ -345,6 +345,17 @@ export function IconLayers({ size }: IconProps) {
   );
 }
 
+export function IconLayout({ size }: IconProps) {
+  return (
+    <svg {...base(size)}>
+      <rect x="8" y="3" width="8" height="5" rx="1.2" />
+      <rect x="3" y="11" width="7" height="5" rx="1.2" />
+      <rect x="14" y="11" width="7" height="5" rx="1.2" />
+      <path d="M12 8v3M6.5 11V9h11v2" />
+    </svg>
+  );
+}
+
 export function IconNote({ size }: IconProps) {
   return (
     <svg {...base(size)}>

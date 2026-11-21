@@ -12,6 +12,7 @@ import {
 } from '../app/projects';
 import { openTextFile } from '../app/files';
 import { exportDocument, importAsNewProject, summarize, type ProjectSummary } from '../core/project';
+import { csvToProject } from '../core/csv';
 import { t } from '../i18n';
 import { IconMap, IconMore } from '../ui/icons';
 import { Modal } from '../ui/Modal';
@@ -48,6 +49,7 @@ export function ProjectsView({
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -131,7 +133,7 @@ export function ProjectsView({
     }
   };
 
-  const applyImport = async (text: string) => {
+  const importJson = async (text: string) => {
     const raw = JSON.parse(text);
     const doc = importAsNewProject(raw);
     await saveProject(doc);
@@ -139,9 +141,26 @@ export function ProjectsView({
     onOpen(doc.id);
   };
 
+  const importCsv = async (text: string, name: string) => {
+    const result = csvToProject(text, name);
+    await saveProject(result.doc);
+    onRefresh();
+    onOpen(result.doc.id);
+  };
+
+  const importText = async (text: string, fileName: string) => {
+    const base = fileName.replace(/\.[^.]+$/, '').trim();
+    const looksLikeJson = text.trimStart().startsWith('{') || text.trimStart().startsWith('[');
+    if (looksLikeJson) {
+      await importJson(text);
+    } else {
+      await importCsv(text, base || t('projects.importCsvName'));
+    }
+  };
+
   const importFile = async (file: File) => {
     try {
-      await applyImport(await file.text());
+      await importText(await file.text(), file.name);
     } catch (cause) {
       setError(t('projects.importError', { error: cause instanceof Error ? cause.message : String(cause) }));
     }
@@ -149,13 +168,17 @@ export function ProjectsView({
 
   const startImport = async () => {
     try {
-      const result = await openTextFile([{ name: 'Netmap JSON', extensions: ['json'] }]);
+      const result = await openTextFile([
+        { name: 'Netmap JSON', extensions: ['json'] },
+        { name: 'CSV', extensions: ['csv'] },
+      ]);
       if (result.status === 'unavailable') {
         fileInput.current?.click();
         return;
       }
       if (result.status === 'canceled') return;
-      await applyImport(result.text);
+      const fileName = result.filePath.split(/[\\/]/).pop() ?? '';
+      await importText(result.text, fileName);
     } catch (cause) {
       setError(t('projects.importError', { error: cause instanceof Error ? cause.message : String(cause) }));
     }
@@ -168,7 +191,25 @@ export function ProjectsView({
   });
 
   return (
-    <div class="projects-page">
+    <div
+      class={`projects-page${dragging ? ' dropping' : ''}`}
+      onDragOver={(event) => {
+        if (!event.dataTransfer?.types?.includes('Files')) return;
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(event) => {
+        const related = event.relatedTarget as Node | null;
+        if (!related || !event.currentTarget.contains(related)) setDragging(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        const file = event.dataTransfer?.files?.[0];
+        if (file) void importFile(file);
+      }}
+    >
+      {dragging && <div class="drop-hint">{t('projects.dropHint')}</div>}
       <header class="topbar">
         <div>
           <h1 class="page-title">{t('projects.title')}</h1>
@@ -178,7 +219,7 @@ export function ProjectsView({
           <input
             ref={fileInput}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.csv,application/json,text/csv"
             style={{ display: 'none' }}
             onChange={(event) => {
               const input = event.target as HTMLInputElement;

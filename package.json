@@ -1,7 +1,7 @@
 {
   "name": "vibe-netmap",
   "private": true,
-  "version": "0.3.4",
+  "version": "0.3.6",
   "description": "Планировщик адресного пространства и карт сети",
   "type": "module",
   "main": "electron/main.cjs",
@@ -17,7 +17,8 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
-    "version:set": "node scripts/set-version.mjs"
+    "version:set": "node scripts/set-version.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "keywords": [
     "network",
@@ -32,6 +33,11 @@
   "build": {
     "appId": "ru.vibe.netmap",
     "productName": "NetMap Planner",
+    "compression": "maximum",
+    "electronLanguages": [
+      "ru",
+      "en-US"
+    ],
     "directories": {
       "output": "release",
       "buildResources": "build"

@@ -695,6 +695,17 @@ textarea {
   padding-bottom: 2px;
 }
 
+.bits-tabs {
+  width: fit-content;
+  margin-bottom: 12px;
+  padding: 3px;
+}
+
+.bits-tabs .tab {
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
 .bits-row {
   display: flex;
   align-items: center;
@@ -733,6 +744,15 @@ textarea {
 .bit:hover {
   border-color: var(--accent);
   color: var(--text);
+}
+
+/* Маска и wildcard только показываются — кликать по ним нечего. */
+.bit.readonly {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  pointer-events: none;
 }
 
 .bit.one {
@@ -1210,8 +1230,39 @@ textarea {
 }
 
 /* ------------------------------------------------------------------ */
-/* �������                                                             */
+/* Проекты                                                             */
 /* ------------------------------------------------------------------ */
+
+.projects-page {
+  position: relative;
+}
+
+.projects-page.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: -12px;
+  border-radius: 14px;
+}
+
+.drop-hint {
+  position: fixed;
+  inset: 28px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 18px;
+  background: rgba(8, 12, 24, 0.72);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+[data-theme='light'] .drop-hint {
+  background: rgba(244, 246, 251, 0.82);
+}
 
 .project-grid {
   display: grid;
@@ -2977,6 +3028,7 @@ textarea {
   font: inherit;
   font-size: 12.5px;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -3057,6 +3109,22 @@ textarea {
   z-index: 9;
 }
 
+/* Мини-карта: обзор всей схемы и текущей области просмотра. */
+.canvas-minimap {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(112px + env(safe-area-inset-bottom));
+  z-index: 9;
+  width: 190px;
+  height: 132px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  cursor: crosshair;
+  touch-action: none;
+}
+
 /* --- Компактные VLAN в карточке порта ------------------------------- */
 
 .vlan-row {
@@ -3124,6 +3192,12 @@ textarea {
 
   .canvas-link-panel {
     bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .canvas-minimap {
+    width: 120px;
+    height: 84px;
+    bottom: calc(148px + env(safe-area-inset-bottom));
   }
 
   .canvas-tool .tool-label,

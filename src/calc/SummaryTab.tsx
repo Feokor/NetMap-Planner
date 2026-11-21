@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { useState } from 'preact/hooks';
 import {
   type Cidr,
   classfulPrefix,
@@ -63,6 +64,7 @@ const KIND_BADGE: Record<string, string> = {
 export function SummaryTab({ cidr, block, onToggleBit, side }: SummaryTabProps) {
   const { family, prefix } = cidr;
   const info = classifyAddress(cidr.address, family);
+  const [bitsMode, setBitsMode] = useState<'address' | 'mask' | 'wildcard'>('address');
 
   const network = blockToString(block);
   const last = formatAddress(family, blockLast(block));
@@ -213,11 +215,40 @@ export function SummaryTab({ cidr, block, onToggleBit, side }: SummaryTabProps) 
 
         <section class="card card-pad">
           <div class="section-title">{t('summary.bits')}</div>
+          <div class="tabs bits-tabs">
+            <button
+              type="button"
+              class={`tab${bitsMode === 'address' ? ' active' : ''}`}
+              onClick={() => setBitsMode('address')}
+            >
+              {t('summary.bits.address')}
+            </button>
+            <button
+              type="button"
+              class={`tab${bitsMode === 'mask' ? ' active' : ''}`}
+              onClick={() => setBitsMode('mask')}
+            >
+              {t('summary.bits.mask')}
+            </button>
+            <button
+              type="button"
+              class={`tab${bitsMode === 'wildcard' ? ' active' : ''}`}
+              onClick={() => setBitsMode('wildcard')}
+            >
+              {t('summary.bits.wildcard')}
+            </button>
+          </div>
           <BitsView
-            address={cidr.address}
+            address={
+              bitsMode === 'address'
+                ? cidr.address
+                : bitsMode === 'mask'
+                  ? maskFromPrefix(family, prefix)
+                  : wildcardFromPrefix(family, prefix)
+            }
             family={family}
             prefix={prefix}
-            onToggle={onToggleBit}
+            onToggle={bitsMode === 'address' ? onToggleBit : undefined}
           />
         </section>
       </div>

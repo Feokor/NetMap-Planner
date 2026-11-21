@@ -6,7 +6,8 @@ interface BitsViewProps {
   address: bigint;
   family: Family;
   prefix: number;
-  onToggle: (address: bigint) => void;
+  /** Если не передан, биты только показываются (маска/wildcard). */
+  onToggle?: (address: bigint) => void;
 }
 
 /** Сколько бит реально влезает в строку: на телефоне 32 квадратика не помещаются. */
@@ -47,6 +48,7 @@ export function BitsView({ address, family, prefix, onToggle }: BitsViewProps) {
   }
 
   const toggleAt = (index: number) => {
+    if (!onToggle) return;
     const chars = bits.split('');
     chars[index] = chars[index] === '1' ? '0' : '1';
     onToggle(fromBitString(chars.join(''), family));
@@ -68,19 +70,25 @@ export function BitsView({ address, family, prefix, onToggle }: BitsViewProps) {
                   isNetwork ? 'network' : 'host',
                   offset > 0 && index % (family === 4 ? 8 : 16) === 0 ? 'octet-start' : '',
                   index === prefix ? 'prefix-edge' : '',
+                  onToggle ? '' : 'readonly',
                 ]
                   .filter(Boolean)
                   .join(' ');
-                return (
+                const title = `Бит ${bits.length - 1 - index}${isNetwork ? ' (сеть)' : ' (хост)'}`;
+                return onToggle ? (
                   <button
                     type="button"
                     key={index}
                     class={classes}
-                    title={`Бит ${bits.length - 1 - index}${isNetwork ? ' (сеть)' : ' (хост)'}`}
+                    title={title}
                     onClick={() => toggleAt(index)}
                   >
                     {value}
                   </button>
+                ) : (
+                  <span key={index} class={classes} title={title}>
+                    {value}
+                  </span>
                 );
               })}
             </div>
@@ -96,7 +104,9 @@ export function BitsView({ address, family, prefix, onToggle }: BitsViewProps) {
           <span class="dot host" />
           {t('summary.hostBitsLabel')} — {bits.length - prefix}
         </span>
-        <span class="muted">{t('summary.bitsHint')}</span>
+        <span class="muted">
+          {onToggle ? t('summary.bitsHint') : t('summary.bitsHintMask')}
+        </span>
       </div>
     </div>
   );

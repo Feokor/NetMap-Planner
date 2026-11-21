@@ -138,6 +138,10 @@ function setupDownloads(window) {
 }
 
 function createWindow() {
+  const iconPath = [
+    path.join(__dirname, '..', 'dist', 'icon.png'),
+    path.join(__dirname, '..', 'build', 'icon.png'),
+  ].find((file) => fsSync.existsSync(file));
   const window = new BrowserWindow({
     width: Number(process.env.VIBE_WINDOW_WIDTH) || 1320,
     height: Number(process.env.VIBE_WINDOW_HEIGHT) || 880,
@@ -147,6 +151,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     title: 'NetMap Planner',
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
