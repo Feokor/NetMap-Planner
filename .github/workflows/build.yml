@@ -24,6 +24,22 @@ jobs:
             release/NetMapPlanner-*-portable.exe
             release/*-win.zip
 
+  tauri:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run tauri:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibe-netmap-tauri
+          path: release/NetMapPlanner-*-tauri.exe
+
   linux:
     runs-on: ubuntu-latest
     steps:

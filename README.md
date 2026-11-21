@@ -130,6 +130,33 @@ npm run android:apk     # -> android/app/build/outputs/apk/debug/app-debug.apk
 npm run icons
 ```
 
+## Tauri (экспериментальная оболочка)
+
+Тот же веб-бандл можно запускать не только в Electron, но и в Tauri 2 — окно на WebView2,
+размер сборки в разы меньше. Android при этом остаётся на Capacitor, Electron-сборка тоже
+никуда не делась.
+
+Что нужно: **Rust 1.77+** и **MSVC C++ Build Tools** (Visual Studio Installer → рабочая
+нагрузка «Разработка классических приложений на C++»). WebView2 уже есть в Windows 10/11.
+
+```powershell
+# окно Tauri с hot reload
+npm run tauri:dev
+
+# одиночный exe без установщика
+npm run tauri:build      # -> release/NetMapPlanner-<версия>-tauri.exe
+
+# то же на Windows, если Visual Studio не создала vcvars64.bat:
+npm run tauri:build:win
+
+# NSIS-установщик
+npm run tauri:installer  # -> src-tauri/target/release/bundle/nsis
+```
+
+Tauri хранит данные в `%APPDATA%\ru.vibe.netmap\storage`. При первом запуске проекты из
+папки Electron-версии (`%APPDATA%\vibe-netmap\storage`) копируются автоматически, так что
+переход не теряет карты.
+
 В git попадают только исходники, конфиги, тесты, CI и скрипты сборки. Не попадают
 `node_modules/`, локальный тулчейн `.tools/`, временные `.tmp/`, собранные `dist/` и
 `release/`, Android-сборка (`android/**/build`, `.gradle`, `local.properties`,
@@ -219,6 +246,16 @@ tests/          vitest: ip, subnet, history, project/plan, canvas
 | **M4** ✅ | PNG/CSV-экспорт, поиск Ctrl+F, хоткеи, связи по портам и мосты (br0), портативный exe Windows (без установщика) |
 | **M5** 🚧 | Android APK (Capacitor) собирается, конфиг Linux AppImage и CI для трёх платформ; осталось: SAF для файлов на Android, подпись релизов |
 | **M6** ✅ | DHCP-пулы, VLAN-сабинтерфейсы, OSPF/BGP на связях, логика мостов, canvas-first панели, мобильные фиксы (safe-area, две строки, pinch, сохранение) |
+
+### Что нового в 0.3.8
+
+- **Вторая оболочка на Tauri.** Тот же интерфейс теперь собирается не только в Electron,
+  но и в Tauri 2: одиночный exe — **3,1 МБ** вместо 135 МБ. Проекты при первом запуске
+  автоматически копируются из папки Electron-версии; Android остаётся на Capacitor.
+  Сборка: `npm run tauri:build` (или `npm run tauri:build:win`), установщик —
+  `npm run tauri:installer`.
+- **Файловые диалоги и хранилище в Tauri** реализованы нативно (Rust): экспорт/импорт
+  JSON, CSV и PNG работают так же, как в Electron.
 
 ### Что нового в 0.3.7
 
@@ -390,9 +427,10 @@ tests/          vitest: ip, subnet, history, project/plan, canvas
     портами/ролями и быстрым добавлением на холст.
 17. ✅ **Иконка приложения.** В 0.3.6: `npm run icons` рисует `build/icon.png`, `build/icon.ico`,
     favicon и все Android-mipmap без внешних зависимостей.
-18. **Вес сборки и Tauri.** В 0.3.6 Windows-архив уменьшен (maximum-сжатие, только локали
-    `ru`/`en-US`). Следующий шаг — перенос оболочки на Tauri: ожидаемо десятки мегабайт
-    вместо ~146 МБ, но это отдельная ветка работы.
+18. ✅ **Вес сборки и Tauri.** В 0.3.6 Windows-архив уменьшен (maximum-сжатие, только локали
+    `ru`/`en-US`), а в 0.3.8 появилась вторая оболочка на Tauri: одиночный exe **3,1 МБ**
+    вместо 135 МБ. Electron- и Android-сборки остаются; Tauri использует WebView2 и требует
+    MSVC C++ Build Tools + Windows SDK.
 
 ### Видение продукта (из обсуждения)
 

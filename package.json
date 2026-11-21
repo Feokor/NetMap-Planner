@@ -1,7 +1,7 @@
 {
   "name": "vibe-netmap",
   "private": true,
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Планировщик адресного пространства и карт сети",
   "type": "module",
   "main": "electron/main.cjs",
@@ -18,7 +18,12 @@
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "version:set": "node scripts/set-version.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --no-bundle && node scripts/copy-tauri.mjs",
+    "tauri:build:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tauri-build-win.ps1",
+    "tauri:installer": "tauri build"
   },
   "keywords": [
     "network",
@@ -70,6 +75,8 @@
     "@capacitor/filesystem": "^8.1.5",
     "@capacitor/share": "^8.0.3",
     "@preact/preset-vite": "^2.10.6",
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/cli": "^2.12.6",
     "@types/node": "^26.6.6",
     "electron": "^45.3.2",
     "electron-builder": "^26.18.0",

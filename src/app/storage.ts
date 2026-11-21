@@ -52,6 +52,45 @@ declare global {
 
 const PREFIX = 'vibe:';
 
+/* --- Tauri ----------------------------------------------------------- */
+/* В Tauri нет preload-моста: собираем тот же window.vibe на invoke().  */
+
+async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const api = await import('@tauri-apps/api/core');
+  return api.invoke<T>(command, args);
+}
+
+function toBase64(data: Uint8Array | ArrayBuffer): string {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
+}
+
+export const isTauri =
+  typeof window !== 'undefined' &&
+  Boolean((window as unknown as Record<string, unknown>).__TAURI_INTERNALS__);
+
+if (isTauri && !window.vibe) {
+  window.vibe = {
+    platform: 'desktop',
+    version: __APP_VERSION__,
+    get: <T>(key: string) => invoke<T | null>('storage_get', { key }),
+    set: <T>(key: string, value: T) => invoke<void>('storage_set', { key, value }),
+    remove: (key: string) => invoke<void>('storage_remove', { key }),
+    saveFile: (request) =>
+      invoke<SaveFileResult>('file_save', {
+        defaultName: request.defaultName,
+        text: typeof request.data === 'string' ? request.data : null,
+        base64: typeof request.data === 'string' ? null : toBase64(request.data),
+        filters: request.filters ?? null,
+      }),
+    openFile: (request) => invoke<OpenFileResult>('file_open', { filters: request.filters ?? null }),
+  };
+}
+
 const webStorage: StorageApi = {
   async get<T>(key: string): Promise<T | null> {
     try {

@@ -11,6 +11,10 @@ release/
 *.tmp
 *.log
 
+# Rust/Tauri: собирается локально
+src-tauri/target/
+src-tauri/gen/
+
 # Android: локальные и сгенерированные файлы
 android/.gradle/
 android/build/

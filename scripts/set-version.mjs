@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 /*
- * Меняет версию сразу в package.json и android/app/build.gradle:
+ * Меняет версию сразу в package.json, android/app/build.gradle и Tauri:
  *   npm run version:set -- 0.2.0-alpha.1
  *
  * versionCode для Android считается как major*10000 + minor*100 + patch —
@@ -37,5 +37,22 @@ const updated = gradle
   .replace(/versionName\s+"[^"]*"/, `versionName "${next}"`);
 writeFileSync(gradlePath, updated, 'utf8');
 
+/* Tauri: версия в конфиге бандла и в Cargo.toml. */
+const tauriConfPath = path.join(root, 'src-tauri', 'tauri.conf.json');
+if (existsSync(tauriConfPath)) {
+  const conf = JSON.parse(readFileSync(tauriConfPath, 'utf8'));
+  conf.version = next;
+  writeFileSync(tauriConfPath, `${JSON.stringify(conf, null, 2)}\n`, 'utf8');
+}
+const cargoPath = path.join(root, 'src-tauri', 'Cargo.toml');
+if (existsSync(cargoPath)) {
+  const cargo = readFileSync(cargoPath, 'utf8').replace(
+    /^(version\s*=\s*)"[^"]*"/m,
+    `$1"${next}"`,
+  );
+  writeFileSync(cargoPath, cargo, 'utf8');
+}
+
 console.log(`версия: ${previous} -> ${next}`);
 console.log(`android: versionCode ${versionCode}, versionName "${next}"`);
+console.log(`tauri: ${next}`);

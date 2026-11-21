@@ -198,10 +198,15 @@ write(join(ROOT, 'public', 'icon.png'), renderIcon(256));
 write(join(ROOT, 'public', 'icon-512.png'), renderIcon(512));
 
 const icoSizes = [16, 24, 32, 48, 64, 128, 256];
-write(
-  join(ROOT, 'build', 'icon.ico'),
-  buildIco(icoSizes.map((size) => ({ size, png: renderIcon(size) }))),
-);
+const ico = buildIco(icoSizes.map((size) => ({ size, png: renderIcon(size) })));
+write(join(ROOT, 'build', 'icon.ico'), ico);
+
+// Tauri: свои имена и каталог.
+write(join(ROOT, 'src-tauri', 'icons', '32x32.png'), renderIcon(32));
+write(join(ROOT, 'src-tauri', 'icons', '128x128.png'), renderIcon(128));
+write(join(ROOT, 'src-tauri', 'icons', '128x128@2x.png'), renderIcon(256));
+write(join(ROOT, 'src-tauri', 'icons', 'icon.png'), renderIcon(512));
+write(join(ROOT, 'src-tauri', 'icons', 'icon.ico'), ico);
 
 const densities = [
   ['mdpi', 48],
