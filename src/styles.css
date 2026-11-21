@@ -1744,14 +1744,15 @@ textarea {
 
 .canvas-link-panel {
   position: absolute;
-  left: 10px;
-  bottom: 42px;
-  z-index: 6;
+  left: calc(12px + env(safe-area-inset-left));
+  right: auto;
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  z-index: 13;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  max-width: calc(100% - 20px);
+  max-width: min(860px, calc(100% - 24px));
   padding: 6px 9px;
   border: 1px solid rgba(77, 156, 255, 0.45);
   border-radius: 9px;
@@ -2902,12 +2903,6 @@ textarea {
   background: rgba(255, 255, 255, 0.92);
 }
 
-.canvas-toolbar .canvas-link-panel {
-  position: fixed;
-  left: calc(12px + env(safe-area-inset-left));
-  bottom: calc(104px + env(safe-area-inset-bottom));
-}
-
 .canvas-tools {
   align-items: center;
   flex-wrap: nowrap;
@@ -3120,6 +3115,17 @@ textarea {
 }
 
 @media (max-width: 860px) {
+  /* В Android WebView env(safe-area-inset-top) может приходить нулевым
+     (edge-to-edge без отчёта об инсетах) — держим заголовок панели
+     ниже системной строки, чтобы шторка уведомлений его не накрывала. */
+  .canvas-panel-head {
+    padding-top: calc(max(env(safe-area-inset-top), 24px) + 4px);
+  }
+
+  .canvas-link-panel {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
   .canvas-tool .tool-label,
   .canvas-tool .tool-caret {
     display: none;

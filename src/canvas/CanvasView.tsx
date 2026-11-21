@@ -1166,6 +1166,103 @@ export function CanvasView({
 
   return (
     <div class="canvas-shell">
+      {selectedLink && (
+        <div class="canvas-link-panel">
+          <span class="canvas-link-title">{t('canvas.link.selected')}</span>
+          {selectedLinkSiblings.length > 1 && (
+            <span
+              class="canvas-link-count"
+              title={t('canvas.link.cycleHint')}
+            >
+              {selectedLinkIndex + 1} / {selectedLinkSiblings.length}
+            </span>
+          )}
+          {(['a', 'b'] as const).map((side) => {
+            const device = doc.devices.find((item) => item.id === selectedLink[side].deviceId);
+            return (
+              <select
+                key={side}
+                class="input select canvas-media"
+                title={t('canvas.link.port')}
+                value={selectedLink[side].portId ?? ''}
+                onChange={(event) =>
+                  setLinkPort(side, (event.target as HTMLSelectElement).value || null)
+                }
+              >
+                <option value="">{t('canvas.link.noPort')}</option>
+                {device &&
+                  linkablePorts(device).map((port) => (
+                    <option key={port.id} value={port.id}>
+                      {device.name} / {port.name}
+                    </option>
+                  ))}
+              </select>
+            );
+          })}
+          <select
+            class="input select canvas-media"
+            value={selectedLink.media}
+            title={t('canvas.link.media')}
+            onChange={(event) =>
+              updateSelectedLink({ media: (event.target as HTMLSelectElement).value as LinkMedia })
+            }
+          >
+            {LINK_MEDIA.map((item) => (
+              <option key={item} value={item}>
+                {t(`media.${item}`)}
+              </option>
+            ))}
+          </select>
+          <select
+            class="input select canvas-media"
+            value={selectedLink.protocol ?? ''}
+            title={t('canvas.link.protocolHint')}
+            onChange={(event) => {
+              const value = (event.target as HTMLSelectElement).value;
+              updateSelectedLink({
+                protocol: value ? (value as LinkProtocol) : null,
+                protocolDetail: value ? selectedLink.protocolDetail ?? '' : undefined,
+              });
+            }}
+          >
+            <option value="">{t('canvas.link.protocol.none')}</option>
+            {LINK_PROTOCOLS.map((item) => (
+              <option key={item} value={item}>
+                {t(`canvas.link.protocol.${item}`)}
+              </option>
+            ))}
+          </select>
+          {selectedLink.protocol && (
+            <input
+              class="input canvas-link-label"
+              placeholder={t('canvas.link.protocolDetail')}
+              title={t('canvas.link.protocolHint')}
+              value={selectedLink.protocolDetail ?? ''}
+              onInput={(event) =>
+                updateSelectedLink({
+                  protocolDetail: (event.target as HTMLInputElement).value,
+                })
+              }
+            />
+          )}
+          <input
+            class="input canvas-link-label"
+            placeholder={t('canvas.link.label')}
+            value={selectedLink.label ?? ''}
+            onInput={(event) =>
+              updateSelectedLink({ label: (event.target as HTMLInputElement).value })
+            }
+          />
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon"
+            title={t('common.delete')}
+            onClick={deleteSelection}
+          >
+            <IconTrash size={15} />
+          </button>
+        </div>
+      )}
       <div class="canvas-toolbar">
         <div class="canvas-tools">
           <button
@@ -1271,104 +1368,6 @@ export function CanvasView({
               </option>
             ))}
           </select>
-        )}
-
-        {selectedLink && (
-          <div class="canvas-link-panel">
-            <span class="canvas-link-title">{t('canvas.link.selected')}</span>
-            {selectedLinkSiblings.length > 1 && (
-              <span
-                class="canvas-link-count"
-                title={t('canvas.link.cycleHint')}
-              >
-                {selectedLinkIndex + 1} / {selectedLinkSiblings.length}
-              </span>
-            )}
-            {(['a', 'b'] as const).map((side) => {
-              const device = doc.devices.find((item) => item.id === selectedLink[side].deviceId);
-              return (
-                <select
-                  key={side}
-                  class="input select canvas-media"
-                  title={t('canvas.link.port')}
-                  value={selectedLink[side].portId ?? ''}
-                  onChange={(event) =>
-                    setLinkPort(side, (event.target as HTMLSelectElement).value || null)
-                  }
-                >
-                  <option value="">{t('canvas.link.noPort')}</option>
-                  {device &&
-                    linkablePorts(device).map((port) => (
-                      <option key={port.id} value={port.id}>
-                        {device.name} / {port.name}
-                      </option>
-                    ))}
-                </select>
-              );
-            })}
-            <select
-              class="input select canvas-media"
-              value={selectedLink.media}
-              title={t('canvas.link.media')}
-              onChange={(event) =>
-                updateSelectedLink({ media: (event.target as HTMLSelectElement).value as LinkMedia })
-              }
-            >
-              {LINK_MEDIA.map((item) => (
-                <option key={item} value={item}>
-                  {t(`media.${item}`)}
-                </option>
-              ))}
-            </select>
-            <select
-              class="input select canvas-media"
-              value={selectedLink.protocol ?? ''}
-              title={t('canvas.link.protocolHint')}
-              onChange={(event) => {
-                const value = (event.target as HTMLSelectElement).value;
-                updateSelectedLink({
-                  protocol: value ? (value as LinkProtocol) : null,
-                  protocolDetail: value ? selectedLink.protocolDetail ?? '' : undefined,
-                });
-              }}
-            >
-              <option value="">{t('canvas.link.protocol.none')}</option>
-              {LINK_PROTOCOLS.map((item) => (
-                <option key={item} value={item}>
-                  {t(`canvas.link.protocol.${item}`)}
-                </option>
-              ))}
-            </select>
-            {selectedLink.protocol && (
-              <input
-                class="input canvas-link-label"
-                placeholder={t('canvas.link.protocolDetail')}
-                title={t('canvas.link.protocolHint')}
-                value={selectedLink.protocolDetail ?? ''}
-                onInput={(event) =>
-                  updateSelectedLink({
-                    protocolDetail: (event.target as HTMLInputElement).value,
-                  })
-                }
-              />
-            )}
-            <input
-              class="input canvas-link-label"
-              placeholder={t('canvas.link.label')}
-              value={selectedLink.label ?? ''}
-              onInput={(event) =>
-                updateSelectedLink({ label: (event.target as HTMLInputElement).value })
-              }
-            />
-            <button
-              type="button"
-              class="btn btn-ghost btn-icon"
-              title={t('common.delete')}
-              onClick={deleteSelection}
-            >
-              <IconTrash size={15} />
-            </button>
-          </div>
         )}
 
         <div class="spacer" />
