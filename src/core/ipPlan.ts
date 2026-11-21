@@ -214,7 +214,7 @@ export function addIpBlock(
   const item: IpBlock = { id: uid('blk'), cidr: cidr.trim(), name: name.trim() || cidr.trim(), ...extra };
   return {
     ...doc,
-    ipPlan: { blocks: [...doc.ipPlan.blocks, item] },
+    ipPlan: { ...doc.ipPlan, blocks: [...doc.ipPlan.blocks, item] },
     updatedAt: Date.now(),
   };
 }

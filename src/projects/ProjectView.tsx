@@ -111,6 +111,7 @@ export function ProjectView({
   const [saveTick, setSaveTick] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [groupOpen, setGroupOpen] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [projectMenu, setProjectMenu] = useState(false);
   const [panel, setPanel] = useState<'devices' | 'plan' | 'checks' | null>(null);
@@ -282,6 +283,26 @@ export function ProjectView({
     setGroupName('');
     setGroupOpen(false);
     setGroupFilter(group.id);
+  };
+
+  const renameGroup = (id: string, name: string) => {
+    apply((current) => ({
+      ...current,
+      groups: current.groups.map((group) => (group.id === id ? { ...group, name } : group)),
+    }));
+  };
+
+  const removeGroup = (name: string, id: string) => {
+    if (!window.confirm(t('projects.groupDeleteConfirm', { name }))) return;
+    apply((current) => ({
+      ...current,
+      groups: current.groups.filter((group) => group.id !== id),
+      devices: current.devices.map((device) => {
+        const ids = deviceGroupIds(device).filter((groupId) => groupId !== id);
+        return { ...device, groupIds: ids, groupId: ids[0] ?? null };
+      }),
+    }));
+    if (groupFilter === id) setGroupFilter('');
   };
 
   const exportJson = async () => {
@@ -504,6 +525,14 @@ export function ProjectView({
                     <button type="button" class="btn" onClick={() => setGroupOpen(true)}>
                       ＋ {t('projects.addGroup')}
                     </button>
+                    <button
+                      type="button"
+                      class="btn"
+                      title={t('projects.groupsTitle')}
+                      onClick={() => setGroupsOpen(true)}
+                    >
+                      {t('projects.groups')}
+                    </button>
                     <button type="button" class="btn btn-primary" onClick={addDevice}>
                       ＋ {t('projects.addDevice')}
                     </button>
@@ -575,6 +604,49 @@ export function ProjectView({
               if (event.key === 'Enter') addGroup();
             }}
           />
+        </Modal>
+      )}
+
+      {groupsOpen && (
+        <Modal
+          title={t('projects.groupsTitle')}
+          onClose={() => setGroupsOpen(false)}
+          footer={
+            <button type="button" class="btn" onClick={() => setGroupsOpen(false)}>
+              {t('common.close')}
+            </button>
+          }
+        >
+          {doc.groups.length === 0 ? (
+            <div class="muted" style={{ fontSize: '12.5px' }}>
+              {t('projects.groupsEmpty')}
+            </div>
+          ) : (
+            <div class="group-manage-list">
+              {doc.groups.map((group) => (
+                <div class="group-manage-row" key={group.id}>
+                  <input
+                    class="input"
+                    value={group.name}
+                    onInput={(event) =>
+                      renameGroup(group.id, (event.target as HTMLInputElement).value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-icon"
+                    title={t('projects.groupDelete')}
+                    onClick={() => removeGroup(group.name, group.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div class="form-hint" style={{ marginTop: '10px' }}>
+            {t('projects.groupsHint')}
+          </div>
         </Modal>
       )}
     </div>

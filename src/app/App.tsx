@@ -64,6 +64,20 @@ export function App() {
     setSidebarOpen(wide);
   }, [wide]);
 
+  // Без preventDefault Electron открывает перетащенный файл вместо импорта в приложении.
+  useEffect(() => {
+    const preventFileDrop = (event: DragEvent) => {
+      const types = Array.from(event.dataTransfer?.types ?? []);
+      if (types.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', preventFileDrop);
+    window.addEventListener('drop', preventFileDrop);
+    return () => {
+      window.removeEventListener('dragover', preventFileDrop);
+      window.removeEventListener('drop', preventFileDrop);
+    };
+  }, []);
+
   const refreshProjects = async () => {
     const list = await listProjects();
     setEntries(list);

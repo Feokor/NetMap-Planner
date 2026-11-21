@@ -175,7 +175,7 @@ export function Sidebar({
 
       <div class="side-foot">
         <div class="brand">
-          <div class="brand-mark">NP</div>
+          <img class="brand-mark" src="./icon.png" alt="" width="38" height="38" />
           <div class="brand-text">
             <div class="brand-name">{t('app.name')}</div>
             <div class="brand-version">v{version}</div>

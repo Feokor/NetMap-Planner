@@ -1110,7 +1110,14 @@ export function validateProject(doc: ProjectDocument): Issue[] {
   for (let i = 0; i < pools.length; i++) {
     const pool = pools[i];
     const at = { deviceId: pool.deviceId, portId: pool.portId };
-    if (!pool.normalized) {
+    // Если в плане есть блок ровно под этот пул, «неровный» адрес — не проблема:
+    // пользователь уже выбрал сеть в плане.
+    const exactBlock = blocks.some(({ block }) => {
+      if (block.family !== pool.family || block.prefix !== pool.prefix) return false;
+      const network = block.address & maskFor(block.family, block.prefix);
+      return network === pool.network;
+    });
+    if (!pool.normalized && !exactBlock) {
       push(
         'warning',
         `DHCP-пул на ${pool.deviceName} / ${pool.portName} лучше указать адресом сети: ${pool.text}`,

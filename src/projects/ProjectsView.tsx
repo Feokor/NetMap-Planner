@@ -100,6 +100,7 @@ export function ProjectsView({
   const openRename = (entry: ProjectIndexEntry) => {
     setRenameTarget(entry);
     setName(entry.name);
+    setDescription(entry.description ?? '');
     setError(null);
   };
 
@@ -107,7 +108,11 @@ export function ProjectsView({
     if (!renameTarget) return;
     const doc = await loadProject(renameTarget.id);
     if (!doc) return;
-    await saveProject({ ...doc, name: name.trim() || doc.name });
+    await saveProject({
+      ...doc,
+      name: name.trim() || doc.name,
+      description: description.trim(),
+    });
     setRenameTarget(null);
     onRefresh();
   };
@@ -296,7 +301,12 @@ export function ProjectsView({
                   <span>{t('projects.updated', { date: formatDate(entry.updatedAt) })}</span>
                 </div>
                 {menuFor === entry.id && (
-                  <div class="side-menu" ref={menuRef} role="menu">
+                  <div
+                    class="side-menu"
+                    ref={menuRef}
+                    role="menu"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -425,6 +435,18 @@ export function ProjectsView({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void rename();
               }}
+            />
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <label class="field-label" for="rename-desc">
+              {t('projects.description')}
+            </label>
+            <textarea
+              id="rename-desc"
+              class="input textarea"
+              value={description}
+              placeholder={t('projects.descriptionPlaceholder')}
+              onInput={(event) => setDescription((event.target as HTMLTextAreaElement).value)}
             />
           </div>
         </Modal>

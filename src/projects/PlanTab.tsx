@@ -8,7 +8,7 @@ import {
   nextFreeInBlock,
   planOverview,
 } from '../core/ipPlan';
-import type { IpBlock, IpGroup, ProjectDocument } from '../core/project';
+import type { DhcpPool, IpBlock, IpGroup, ProjectDocument } from '../core/project';
 import {
   IP_GROUP_MAX_DEPTH,
   createDhcpPool,
@@ -204,7 +204,14 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
     if (!window.confirm(t('plan.confirmDelete', { cidr: blockCidr }))) return;
     onChange((current) => ({
       ...current,
-      ipPlan: { blocks: current.ipPlan.blocks.filter((item) => item.id !== id) },
+      ipPlan: {
+        ...current.ipPlan,
+        blocks: current.ipPlan.blocks.filter((item) => item.id !== id),
+        groups: (current.ipPlan.groups ?? []).map((group) => ({
+          ...group,
+          blockIds: group.blockIds.filter((blockId) => blockId !== id),
+        })),
+      },
     }));
   };
 
@@ -258,6 +265,7 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
     onChange((current) => ({
       ...current,
       ipPlan: {
+        ...current.ipPlan,
         blocks: current.ipPlan.blocks.map((item) =>
           item.id === editing.id
             ? {
@@ -368,6 +376,49 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
     );
     setDhcp(null);
     setDhcpError(null);
+  };
+
+  const removePool = (pool: DhcpPool) => {
+    if (!window.confirm(t('plan.dhcpDeleteConfirm', { text: pool.text }))) return;
+    onChange((current) => ({
+      ...current,
+      devices: current.devices.map((device) =>
+        device.id !== pool.deviceId
+          ? device
+          : {
+              ...device,
+              ports: device.ports.map((port) =>
+                port.id !== pool.portId
+                  ? port
+                  : { ...port, ips: port.ips.filter((ip) => ip.id !== pool.ipId) },
+              ),
+            },
+      ),
+    }));
+  };
+
+  /** Приводит адрес пула к адресу сети: 192.168.7.200/28 → 192.168.7.192/28. */
+  const normalizePool = (pool: DhcpPool) => {
+    onChange((current) => ({
+      ...current,
+      devices: current.devices.map((device) =>
+        device.id !== pool.deviceId
+          ? device
+          : {
+              ...device,
+              ports: device.ports.map((port) =>
+                port.id !== pool.portId
+                  ? port
+                  : {
+                      ...port,
+                      ips: port.ips.map((ip) =>
+                        ip.id === pool.ipId ? { ...ip, address: pool.networkText } : ip,
+                      ),
+                    },
+              ),
+            },
+      ),
+    }));
   };
 
   return (
@@ -606,9 +657,29 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
           <div class="dhcp-pools">
             {pools.map((pool) => (
               <div class="dhcp-pool" key={pool.ipId}>
-                <div class="mono">
-                  {pool.text}
-                  <CopyButton value={pool.text} />
+                <div class="inline" style={{ gap: '6px' }}>
+                  <div class="mono" style={{ flex: 1 }}>
+                    {pool.text}
+                    <CopyButton value={pool.text} />
+                  </div>
+                  {!pool.normalized && (
+                    <button
+                      type="button"
+                      class="btn btn-ghost"
+                      title={t('plan.dhcpNormalizeHint')}
+                      onClick={() => normalizePool(pool)}
+                    >
+                      {t('plan.dhcpNormalize')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-icon"
+                    title={t('plan.dhcpDelete')}
+                    onClick={() => removePool(pool)}
+                  >
+                    <IconTrash size={13} />
+                  </button>
                 </div>
                 <div class="device-sub">
                   {pool.deviceName} / {pool.portName}
@@ -840,6 +911,9 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
               </option>
             ))}
           </select>
+          <div class="form-hint" style={{ marginTop: '6px' }}>
+            {t('plan.dhcpServerHint')}
+          </div>
 
           <div class="inline" style={{ gap: '8px', marginTop: '10px', alignItems: 'flex-end' }}>
             <div style={{ flex: '1 1 140px' }}>

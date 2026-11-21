@@ -196,6 +196,14 @@ export const ru: Record<string, string> = {
   'projects.saving': 'Сохранение…',
   'projects.addDevice': 'Устройство',
   'projects.addGroup': 'Группу',
+  'projects.groups': 'Группы',
+  'projects.groupsTitle': 'Группы устройств',
+  'projects.groupsEmpty': 'Групп пока нет — создайте первую кнопкой «＋ Группу».',
+  'projects.groupsHint':
+    'Имя группы сохраняется сразу. Удаление убирает группу у устройств, сами устройства остаются.',
+  'projects.groupDelete': 'Удалить группу',
+  'projects.groupDeleteConfirm':
+    'Удалить группу «{name}»? Устройства останутся, но выйдут из неё.',
   'projects.search': 'Поиск: имя, IP, MAC, роль, ОС…',
   'projects.allGroups': 'Все группы',
   'projects.defaultView': 'Режим по умолчанию',
@@ -250,6 +258,8 @@ export const ru: Record<string, string> = {
   'device.vlan.add': 'Добавить VLAN',
   'device.vlan.remove': 'Удалить VLAN',
   'device.dhcpPool': 'Пул DHCP',
+  'device.dhcpOnPort':
+    'Пул на этом интерфейсе (обычно DHCP-сервер). Пустые поля — выдаём весь диапазон хостов.',
   'device.addresses': 'адресов',
   'device.removePort': 'Удалить порт',
   'device.port.name': 'Имя',
@@ -338,7 +348,13 @@ export const ru: Record<string, string> = {
   'plan.dhcpCreate': 'Создать DHCP-пул',
   'plan.dhcpTitle': 'DHCP-пул из блока',
   'plan.dhcpHint': 'по умолчанию выдаются все хосты блока, диапазон можно сузить',
-  'plan.dhcpDevice': 'Устройство и порт',
+  'plan.dhcpDevice': 'Порт DHCP-сервера',
+  'plan.dhcpServerHint':
+    'Пул привязывается к порту DHCP-сервера — клиенты получают из него адреса. Порт клиента здесь выбирать не нужно.',
+  'plan.dhcpDelete': 'Удалить DHCP-пул',
+  'plan.dhcpDeleteConfirm': 'Удалить DHCP-пул {text}?',
+  'plan.dhcpNormalize': 'Выровнять',
+  'plan.dhcpNormalizeHint': 'Заменить адрес на адрес сети (например, .200/28 → .192/28)',
   'plan.dhcpNoPorts': 'Нет портов — сначала добавьте порт в карточке устройства',
   'plan.dhcpFrom': 'Первый адрес',
   'plan.dhcpTo': 'Последний адрес',
@@ -438,6 +454,8 @@ export const ru: Record<string, string> = {
   'canvas.searchResults': 'Результаты ({n})',
   'canvas.minimap': 'Мини-карта',
   'canvas.minimap.hint': 'Мини-карта: клик или перетаскивание центрирует холст',
+  'canvas.drawings.hide': 'Скрыть рисунки',
+  'canvas.drawings.show': 'Показать рисунки',
   'canvas.autoLayout': 'Авто-раскладка',
   'canvas.autoLayout.confirm':
     'Разложить устройства по уровням связей? Отменить можно через Ctrl+Z.',

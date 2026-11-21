@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import {
   DEVICE_KINDS,
   DEVICE_LAYERS,
@@ -134,8 +134,14 @@ export function DeviceEditor({ doc, device, onChange, onClose, onDelete }: Devic
   const [bridgePick, setBridgePick] = useState<string[]>([]);
   const [vlanInput, setVlanInput] = useState<Record<string, string>>({});
   const [openVlan, setOpenVlan] = useState<string | null>(null);
+  const [tagText, setTagText] = useState(device.tags.join(', '));
   const problems = ipProblems(doc, device);
   const free = nextFreeAnywhere(doc);
+
+  // Теги вводим как обычный текст: иначе запятая сразу «съедалась» split/join.
+  useEffect(() => {
+    setTagText(device.tags.join(', '));
+  }, [device.id]);
 
   const bridged = memberPortIds(device);
   const bridges = device.ports.filter(isBridgePort);
@@ -356,6 +362,37 @@ export function DeviceEditor({ doc, device, onChange, onClose, onDelete }: Devic
             {subnet && (
               <div class={`form-hint${subnet.warn ? ' form-hint-warn' : ''}`}>{subnet.text}</div>
             )}
+            {ip.role === 'dhcp' && (
+              <div style={{ marginTop: '6px' }}>
+                <div class="form-hint">{t('device.dhcpOnPort')}</div>
+                <div class="inline" style={{ gap: '8px', marginTop: '6px' }}>
+                  <input
+                    class="input mono"
+                    style={{ flex: '1 1 120px' }}
+                    placeholder={t('plan.dhcpFrom')}
+                    value={ip.poolFrom ?? ''}
+                    spellcheck={false}
+                    onInput={(event) =>
+                      updateIp(port.id, ip.id, {
+                        poolFrom: (event.target as HTMLInputElement).value || undefined,
+                      })
+                    }
+                  />
+                  <input
+                    class="input mono"
+                    style={{ flex: '1 1 120px' }}
+                    placeholder={t('plan.dhcpTo')}
+                    value={ip.poolTo ?? ''}
+                    spellcheck={false}
+                    onInput={(event) =>
+                      updateIp(port.id, ip.id, {
+                        poolTo: (event.target as HTMLInputElement).value || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -509,15 +546,16 @@ export function DeviceEditor({ doc, device, onChange, onClose, onDelete }: Devic
             <div style={{ marginTop: '12px' }}>
               <TextField
                 label={t('device.tags')}
-                value={device.tags.join(', ')}
-                onChange={(value) =>
+                value={tagText}
+                onChange={(value) => {
+                  setTagText(value);
                   update({
                     tags: value
                       .split(',')
                       .map((tag) => tag.trim())
                       .filter(Boolean),
-                  })
-                }
+                  });
+                }}
               />
             </div>
             <div style={{ marginTop: '12px' }}>

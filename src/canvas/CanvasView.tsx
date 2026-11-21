@@ -164,6 +164,7 @@ export function CanvasView({
   const pinchRef = useRef<{ distance: number; center: Point; view: Viewport } | null>(null);
   const pixelSizeRef = useRef({ width: 0, height: 0 });
   const fittedDocRef = useRef<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<Viewport>({ x: 48, y: 48, zoom: 1 });
@@ -286,6 +287,14 @@ export function CanvasView({
       if (value) setMinimapOpen(true);
     });
   }, []);
+
+  // Ctrl+F открывает поиск и сразу ставит курсор в поле — можно печатать.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const input = searchInputRef.current;
+    input?.focus();
+    input?.select();
+  }, [searchOpen]);
 
   useEffect(() => {
     if (size.width < 20 || fittedDocRef.current === doc.id) return;
@@ -696,7 +705,8 @@ export function CanvasView({
       return;
     }
 
-    const annotation = annotationAt(world);
+    // Alt+клик пропускает рисунки насквозь — удобно попасть по проводу под рамкой.
+    const annotation = event.altKey ? null : annotationAt(world);
     if (annotation) {
       setSelectedAnnotationId(annotation.id);
       setSelectedLinkId(null);
@@ -1071,6 +1081,18 @@ export function CanvasView({
     void storage.set('ui.minimap', next);
   };
 
+  const annotationLayers = doc.layers.filter((layer) => layer.kind === 'annotation');
+  const drawingsVisible = annotationLayers.some((layer) => layer.visible !== false);
+  const toggleDrawings = () => {
+    const next = !drawingsVisible;
+    onChange((current) => ({
+      ...current,
+      layers: current.layers.map((layer) =>
+        layer.kind === 'annotation' ? { ...layer, visible: next } : layer,
+      ),
+    }));
+  };
+
   const toolButton = (tool: CanvasTool, icon: JSX.Element, label: string) => (
     <button
       type="button"
@@ -1272,10 +1294,16 @@ export function CanvasView({
             title={t('canvas.link.protocolHint')}
             onChange={(event) => {
               const value = (event.target as HTMLSelectElement).value;
-              updateSelectedLink({
+              const patch: Partial<Link> = {
                 protocol: value ? (value as LinkProtocol) : null,
                 protocolDetail: value ? selectedLink.protocolDetail ?? '' : undefined,
-              });
+              };
+              // OSPF/BGP — логические связи: физические порты им не нужны.
+              if (value) {
+                patch.a = { ...selectedLink.a, portId: null };
+                patch.b = { ...selectedLink.b, portId: null };
+              }
+              updateSelectedLink(patch);
             }}
           >
             <option value="">{t('canvas.link.protocol.none')}</option>
@@ -1506,6 +1534,10 @@ export function CanvasView({
                 }}
               >
                 <IconMap size={14} /> {t('canvas.minimap')}
+              </button>
+              <button type="button" onClick={toggleDrawings}>
+                {drawingsVisible ? <IconEyeOff size={14} /> : <IconEye size={14} />}{' '}
+                {drawingsVisible ? t('canvas.drawings.hide') : t('canvas.drawings.show')}
               </button>
             </div>
           )}
@@ -1778,6 +1810,7 @@ export function CanvasView({
           }
         >
           <input
+            ref={searchInputRef}
             class="input"
             autofocus
             placeholder={t('canvas.searchPlaceholder')}
