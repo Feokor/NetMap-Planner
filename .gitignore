@@ -1,0 +1,39 @@
+# Зависимости (ставятся npm ci / npm install)
+node_modules/
+
+# Сгенерированные сборки и артефакты релизов
+dist/
+release/
+
+# Локальный портативный тулчейн и временные файлы
+.tools/
+.tmp/
+*.tmp
+*.log
+
+# Android: локальные и сгенерированные файлы
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+
+# Ключи подписи и секреты — в репозиторий не попадают
+.env
+.env.*
+*.jks
+*.keystore
+keystore.properties
+*.p12
+*.pfx
+
+# ОС и редакторы
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Покрытие тестами и кэш TypeScript
+coverage/
+*.tsbuildinfo

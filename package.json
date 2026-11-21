@@ -1,0 +1,74 @@
+{
+  "name": "vibe-netmap",
+  "private": true,
+  "version": "0.3.3",
+  "description": "Планировщик адресного пространства и карт сети",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "electron:dev": "node scripts/electron-dev.mjs",
+    "electron": "electron .",
+    "dist:portable": "npm run build && electron-builder --win zip && node scripts/make-portable.mjs",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "version:set": "node scripts/set-version.mjs"
+  },
+  "keywords": [
+    "network",
+    "ipam",
+    "subnet",
+    "diagram"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "vibe-netmap"
+  },
+  "build": {
+    "appId": "ru.vibe.netmap",
+    "productName": "NetMap Planner",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*",
+      "!**/node_modules/@capacitor/**"
+    ],
+    "win": {
+      "target": [
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network",
+      "artifactName": "VibeNetmap-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}
