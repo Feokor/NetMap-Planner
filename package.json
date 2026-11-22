@@ -1,7 +1,7 @@
 {
   "name": "vibe-netmap",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Планировщик адресного пространства и карт сети",
   "type": "module",
   "main": "electron/main.cjs",

@@ -18,6 +18,7 @@ import {
   type Rect,
   type Viewport,
   anchorPoint,
+  annotationHandlePoints,
   annotationRect,
   gridStep,
   layerPlan,
@@ -574,6 +575,7 @@ function drawPortDots(
 }
 
 function annotationFill(annotation: Annotation): string | null {
+  if (annotation.fill === 'none') return null;
   if (annotation.fill) return annotation.fill;
   if (annotation.kind === 'rect' || annotation.kind === 'ellipse' || annotation.kind === 'note') {
     return '#4d9cff';
@@ -588,11 +590,12 @@ function drawAnnotation(
   selected = false,
 ): void {
   const opacity = annotation.opacity ?? 0.2;
-  const stroke = annotation.stroke || pal.accent;
+  const stroke = annotation.stroke === 'none' ? null : annotation.stroke || pal.accent;
   const width = annotation.strokeWidth ?? 2;
   const rect = annotationRect(annotation);
 
   ctx.save();
+  if (annotation.dashed) ctx.setLineDash([8, 5]);
 
   if (annotation.kind === 'rect' || annotation.kind === 'ellipse') {
     ctx.beginPath();
@@ -623,29 +626,33 @@ function drawAnnotation(
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = width;
-    ctx.stroke();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
   } else if (annotation.kind === 'line' || annotation.kind === 'arrow') {
     const from = { x: annotation.x, y: annotation.y };
     const to = { x: annotation.x + annotation.width, y: annotation.y + annotation.height };
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = width;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    if (annotation.kind === 'arrow') {
-      const angle = Math.atan2(to.y - from.y, to.x - from.x);
-      const head = 11 + width * 2;
+    if (stroke) {
       ctx.beginPath();
-      ctx.moveTo(to.x, to.y);
-      ctx.lineTo(to.x - head * Math.cos(angle - Math.PI / 7), to.y - head * Math.sin(angle - Math.PI / 7));
-      ctx.moveTo(to.x, to.y);
-      ctx.lineTo(to.x - head * Math.cos(angle + Math.PI / 7), to.y - head * Math.sin(angle + Math.PI / 7));
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
       ctx.stroke();
+
+      if (annotation.kind === 'arrow') {
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const head = 11 + width * 2;
+        ctx.beginPath();
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - head * Math.cos(angle - Math.PI / 7), to.y - head * Math.sin(angle - Math.PI / 7));
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - head * Math.cos(angle + Math.PI / 7), to.y - head * Math.sin(angle + Math.PI / 7));
+        ctx.stroke();
+      }
     }
   } else if (annotation.kind === 'text') {
     const size = annotation.fontSize ?? 14;
@@ -678,9 +685,11 @@ function drawAnnotation(
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = width;
-    ctx.stroke();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
 
     const size = annotation.fontSize ?? 13;
     const padding = 11;
@@ -703,6 +712,36 @@ function drawAnnotation(
     ctx.setLineDash([]);
   }
 
+  ctx.restore();
+}
+
+/** Ручки изменения размера поверх выделенного рисунка. */
+function drawAnnotationHandles(
+  ctx: CanvasRenderingContext2D,
+  annotation: Annotation,
+  zoom: number,
+  pal: Palette,
+): void {
+  const size = 8 / Math.max(zoom, 0.2);
+  ctx.save();
+  ctx.lineWidth = 1.5 / Math.max(zoom, 0.2);
+  for (const handle of annotationHandlePoints(annotation)) {
+    ctx.beginPath();
+    if (annotation.kind === 'line' || annotation.kind === 'arrow') {
+      ctx.arc(handle.point.x, handle.point.y, size / 1.6, 0, Math.PI * 2);
+    } else {
+      ctx.rect(
+        handle.point.x - size / 2,
+        handle.point.y - size / 2,
+        size,
+        size,
+      );
+    }
+    ctx.fillStyle = pal.accent;
+    ctx.fill();
+    ctx.strokeStyle = pal.background;
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -805,6 +844,13 @@ export function renderScene(input: RenderInput): void {
         drawAnnotation(ctx, annotation, pal, input.selectedAnnotationId === annotation.id);
       }
     }
+  }
+
+  const selectedAnnotation = input.selectedAnnotationId
+    ? input.doc.annotations.find((item) => item.id === input.selectedAnnotationId)
+    : null;
+  if (selectedAnnotation) {
+    drawAnnotationHandles(ctx, selectedAnnotation, view.zoom, pal);
   }
 
   // Направляющие выравнивания — поверх содержимого, под черновиком.

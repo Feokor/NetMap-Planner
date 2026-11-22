@@ -246,7 +246,6 @@ export function App() {
             pins={pins}
             onRefresh={() => void refreshProjects()}
             onOpen={openProject}
-            onTemplates={openTemplates}
             onTogglePin={togglePin}
           />
         )}

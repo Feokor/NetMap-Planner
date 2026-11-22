@@ -436,7 +436,6 @@ export interface AlignmentResult {
   dy: number;
   guides: AlignmentGuide[];
 }
-
 /**
  * Привязка к краям и центрам соседних узлов: ищет ближайшее совпадение
  * в пределах threshold и возвращает сдвиг + линии-направляющие.
@@ -474,4 +473,101 @@ export function alignmentSnap(
   if (bestX) guides.push({ axis: 'x', value: bestX.value });
   if (bestY) guides.push({ axis: 'y', value: bestY.value });
   return { dx: bestX?.diff ?? 0, dy: bestY?.diff ?? 0, guides };
+}
+
+export type AnnotationHandleId =
+  | 'nw'
+  | 'n'
+  | 'ne'
+  | 'e'
+  | 'se'
+  | 's'
+  | 'sw'
+  | 'w'
+  | 'start'
+  | 'end';
+
+/** Ручки выделенного рисунка: 8 у рамок, 2 конца у линий. */
+export function annotationHandlePoints(
+  annotation: Annotation,
+): Array<{ id: AnnotationHandleId; point: Point }> {
+  if (annotation.kind === 'line' || annotation.kind === 'arrow') {
+    return [
+      { id: 'start', point: { x: annotation.x, y: annotation.y } },
+      {
+        id: 'end',
+        point: { x: annotation.x + annotation.width, y: annotation.y + annotation.height },
+      },
+    ];
+  }
+  const rect = annotationRect(annotation);
+  const { x, y, width, height } = rect;
+  return [
+    { id: 'nw', point: { x, y } },
+    { id: 'n', point: { x: x + width / 2, y } },
+    { id: 'ne', point: { x: x + width, y } },
+    { id: 'e', point: { x: x + width, y: y + height / 2 } },
+    { id: 'se', point: { x: x + width, y: y + height } },
+    { id: 's', point: { x: x + width / 2, y: y + height } },
+    { id: 'sw', point: { x, y: y + height } },
+    { id: 'w', point: { x, y: y + height / 2 } },
+  ];
+}
+
+/** Ручка под курсором (допуск в мировых единицах). */
+export function annotationHandleAt(
+  annotation: Annotation,
+  point: Point,
+  tolerance: number,
+): AnnotationHandleId | null {
+  for (const handle of annotationHandlePoints(annotation)) {
+    if (Math.hypot(handle.point.x - point.x, handle.point.y - point.y) <= tolerance) {
+      return handle.id;
+    }
+  }
+  return null;
+}
+
+/** Пересчитывает рамку при перетаскивании ручки (минимум 12×12). */
+export function resizeAnnotationTo(
+  origin: Annotation,
+  handle: AnnotationHandleId,
+  point: Point,
+  minSize = 12,
+): Annotation {
+  if (origin.kind === 'line' || origin.kind === 'arrow') {
+    if (handle === 'start') {
+      return {
+        ...origin,
+        x: point.x,
+        y: point.y,
+        width: origin.x + origin.width - point.x,
+        height: origin.y + origin.height - point.y,
+      };
+    }
+    return {
+      ...origin,
+      width: point.x - origin.x,
+      height: point.y - origin.y,
+    };
+  }
+
+  const rect = annotationRect(origin);
+  let left = rect.x;
+  let top = rect.y;
+  let right = rect.x + rect.width;
+  let bottom = rect.y + rect.height;
+
+  if (handle.includes('w')) left = Math.min(point.x, right - minSize);
+  if (handle.includes('e')) right = Math.max(point.x, left + minSize);
+  if (handle.includes('n')) top = Math.min(point.y, bottom - minSize);
+  if (handle.includes('s')) bottom = Math.max(point.y, top + minSize);
+
+  return {
+    ...origin,
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+  };
 }

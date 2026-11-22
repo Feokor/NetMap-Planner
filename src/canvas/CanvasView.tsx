@@ -45,12 +45,15 @@ import {
 } from '../ui/icons';
 import {
   type AlignmentGuide,
+  type AnnotationHandleId,
   type CanvasTool,
   type Point,
   type Viewport,
   NODE_HEIGHT,
   NODE_WIDTH,
   alignmentSnap,
+  annotationHandleAt,
+  resizeAnnotationTo,
   distanceToPolyline,
   findFreeSpot,
   fitViewport,
@@ -107,12 +110,14 @@ export interface CanvasViewProps {
 }
 
 interface DragState {
-  kind: 'pan' | 'move' | 'draw';
+  kind: 'pan' | 'move' | 'draw' | 'annotation-move' | 'annotation-resize';
   startScreen: Point;
   startWorld: Point;
   viewOrigin: Viewport;
   deviceOrigin: Map<string, Point>;
   draftKind?: DraftShape['kind'];
+  annotationOrigin?: Annotation;
+  annotationHandle?: AnnotationHandleId;
   moved: boolean;
 }
 
@@ -705,6 +710,29 @@ export function CanvasView({
       return;
     }
 
+    // Ручки выбранного рисунка: изменение размера важнее выбора.
+    if (selectedAnnotation) {
+      const handle = annotationHandleAt(
+        selectedAnnotation,
+        world,
+        9 / Math.max(view.zoom, 0.2),
+      );
+      if (handle) {
+        dragRef.current = {
+          kind: 'annotation-resize',
+          startScreen: screen,
+          startWorld: world,
+          viewOrigin: view,
+          deviceOrigin: new Map(),
+          annotationOrigin: selectedAnnotation,
+          annotationHandle: handle,
+          moved: false,
+        };
+        try { canvas.setPointerCapture(event.pointerId); } catch { /* без захвата */ }
+        return;
+      }
+    }
+
     // Alt+клик пропускает рисунки насквозь — удобно попасть по проводу под рамкой.
     const annotation = event.altKey ? null : annotationAt(world);
     if (annotation) {
@@ -712,6 +740,16 @@ export function CanvasView({
       setSelectedLinkId(null);
       setSelection([]);
       setLinkSourceId(null);
+      dragRef.current = {
+        kind: 'annotation-move',
+        startScreen: screen,
+        startWorld: world,
+        viewOrigin: view,
+        deviceOrigin: new Map(),
+        annotationOrigin: annotation,
+        moved: false,
+      };
+      try { canvas.setPointerCapture(event.pointerId); } catch { /* без захвата */ }
       return;
     }
 
@@ -841,6 +879,38 @@ export function CanvasView({
       );
       setGuides(nextGuides);
       setPreview(positions);
+      return;
+    }
+
+    if (drag.kind === 'annotation-move') {
+      const origin = drag.annotationOrigin;
+      if (!origin) return;
+      const dx = world.x - drag.startWorld.x;
+      const dy = world.y - drag.startWorld.y;
+      if (Math.hypot(dx, dy) < 1) return;
+      drag.moved = true;
+      onChange((current) => ({
+        ...current,
+        annotations: current.annotations.map((annotation) =>
+          annotation.id === origin.id
+            ? { ...annotation, x: origin.x + dx, y: origin.y + dy }
+            : annotation,
+        ),
+      }));
+      return;
+    }
+
+    if (drag.kind === 'annotation-resize') {
+      const origin = drag.annotationOrigin;
+      if (!origin || !drag.annotationHandle) return;
+      const next = resizeAnnotationTo(origin, drag.annotationHandle, world);
+      drag.moved = true;
+      onChange((current) => ({
+        ...current,
+        annotations: current.annotations.map((annotation) =>
+          annotation.id === origin.id ? { ...annotation, ...next } : annotation,
+        ),
+      }));
       return;
     }
 
@@ -1170,6 +1240,26 @@ export function CanvasView({
     ? doc.links.find((link) => link.id === selectedLinkId) ?? null
     : null;
 
+  const selectedAnnotation = selectedAnnotationId
+    ? doc.annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null
+    : null;
+
+  const updateSelectedAnnotation = (patch: Partial<Annotation>) => {
+    if (!selectedAnnotationId) return;
+    const id = selectedAnnotationId;
+    onChange((current) => ({
+      ...current,
+      annotations: current.annotations.map((annotation) =>
+        annotation.id === id ? { ...annotation, ...patch } : annotation,
+      ),
+    }));
+  };
+
+  const annotationKind = selectedAnnotation?.kind ?? null;
+  const annotationIsText = annotationKind === 'text';
+  const annotationHasFill =
+    annotationKind === 'rect' || annotationKind === 'ellipse' || annotationKind === 'note';
+
   /** Соседние линии того же пучка — для подписи «связь N из M» и перебора кликом. */
   const selectedLinkSiblings = selectedLink
     ? doc.links.filter(
@@ -1438,7 +1528,7 @@ export function CanvasView({
           </button>
         </div>
 
-        {(activeTool !== 'select' && activeTool !== 'link') || selectedAnnotationId ? (
+        {(activeTool !== 'select' && activeTool !== 'link' && !selectedAnnotation) ? (
           <div class="canvas-colors" title={t('canvas.color')}>
             {ANNOTATION_COLORS.map((color) => (
               <button
@@ -1565,6 +1655,197 @@ export function CanvasView({
           <IconLayers size={15} />
         </button>
       </div>
+
+      {selectedAnnotation && (
+        <div class="annotation-inspector">
+          <div class="annotation-inspector-head">
+            <strong>{t('annotation.properties')}</strong>
+            <button
+              type="button"
+              class="btn btn-ghost btn-icon"
+              title={t('common.close')}
+              onClick={() => setSelectedAnnotationId(null)}
+            >
+              ✕
+            </button>
+          </div>
+
+          {annotationHasFill && (
+            <div class="annotation-field">
+              <span>{t('annotation.fill')}</span>
+              <div class="annotation-colors">
+                {ANNOTATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    class={`canvas-color${selectedAnnotation.fill === color ? ' active' : ''}`}
+                    style={{ background: color }}
+                    title={color}
+                    onClick={() => updateSelectedAnnotation({ fill: color })}
+                  />
+                ))}
+                <button
+                  type="button"
+                  class={`canvas-color canvas-color-none${selectedAnnotation.fill === 'none' ? ' active' : ''}`}
+                  title={t('annotation.noFill')}
+                  onClick={() => updateSelectedAnnotation({ fill: 'none' })}
+                >
+                  ∅
+                </button>
+              </div>
+            </div>
+          )}
+
+          {annotationIsText ? (
+            <div class="annotation-field">
+              <span>{t('annotation.textColor')}</span>
+              <div class="annotation-colors">
+                {ANNOTATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    class={`canvas-color${selectedAnnotation.color === color ? ' active' : ''}`}
+                    style={{ background: color }}
+                    title={color}
+                    onClick={() => updateSelectedAnnotation({ color })}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div class="annotation-field">
+              <span>{t('annotation.stroke')}</span>
+              <div class="annotation-colors">
+                {ANNOTATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    class={`canvas-color${selectedAnnotation.stroke === color ? ' active' : ''}`}
+                    style={{ background: color }}
+                    title={color}
+                    onClick={() => updateSelectedAnnotation({ stroke: color })}
+                  />
+                ))}
+                <button
+                  type="button"
+                  class={`canvas-color canvas-color-none${selectedAnnotation.stroke === 'none' ? ' active' : ''}`}
+                  title={t('annotation.noStroke')}
+                  onClick={() => updateSelectedAnnotation({ stroke: 'none' })}
+                >
+                  ∅
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!annotationIsText && (
+            <>
+              <label class="annotation-row">
+                <span>{t('annotation.width')}</span>
+                <select
+                  class="input select"
+                  value={selectedAnnotation.strokeWidth ?? 2}
+                  onChange={(event) =>
+                    updateSelectedAnnotation({
+                      strokeWidth: Number((event.target as HTMLSelectElement).value),
+                    })
+                  }
+                >
+                  {[1, 2, 3, 4, 6, 8].map((width) => (
+                    <option key={width} value={width}>
+                      {width} px
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label class="annotation-check">
+                <input
+                  type="checkbox"
+                  checked={selectedAnnotation.dashed === true}
+                  onChange={(event) =>
+                    updateSelectedAnnotation({
+                      dashed: (event.target as HTMLInputElement).checked,
+                    })
+                  }
+                />
+                {t('annotation.dashed')}
+              </label>
+            </>
+          )}
+
+          {annotationHasFill && (
+            <label class="annotation-row">
+              <span>{t('annotation.opacity')}</span>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={Math.round((selectedAnnotation.opacity ?? 0.2) * 100)}
+                onInput={(event) =>
+                  updateSelectedAnnotation({
+                    opacity: Number((event.target as HTMLInputElement).value) / 100,
+                  })
+                }
+              />
+            </label>
+          )}
+
+          {(annotationKind === 'rect' || annotationKind === 'note') && (
+            <label class="annotation-row">
+              <span>{t('annotation.radius')}</span>
+              <input
+                type="range"
+                min="0"
+                max="30"
+                value={selectedAnnotation.radius ?? 10}
+                onInput={(event) =>
+                  updateSelectedAnnotation({
+                    radius: Number((event.target as HTMLInputElement).value),
+                  })
+                }
+              />
+            </label>
+          )}
+
+          {(annotationIsText || annotationKind === 'note') && (
+            <label class="annotation-row">
+              <span>{t('annotation.fontSize')}</span>
+              <input
+                class="input mono"
+                type="number"
+                min="8"
+                max="40"
+                value={selectedAnnotation.fontSize ?? (annotationKind === 'note' ? 13 : 14)}
+                onInput={(event) =>
+                  updateSelectedAnnotation({
+                    fontSize: Math.max(8, Number((event.target as HTMLInputElement).value) || 14),
+                  })
+                }
+              />
+            </label>
+          )}
+
+          {annotationIsText && (
+            <div class="annotation-field">
+              <span>{t('annotation.align')}</span>
+              <div class="inline" style={{ gap: '4px' }}>
+                {(['left', 'center', 'right'] as const).map((align) => (
+                  <button
+                    key={align}
+                    type="button"
+                    class={`btn${((selectedAnnotation.textAlign ?? 'left') === align) ? ' btn-primary' : ''}`}
+                    onClick={() => updateSelectedAnnotation({ textAlign: align })}
+                  >
+                    {t(`annotation.align.${align}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div class="form-hint">{t('annotation.hint')}</div>
+        </div>
+      )}
 
       <div class="canvas-stage" ref={wrapRef}>
         <canvas

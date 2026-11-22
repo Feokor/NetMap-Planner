@@ -23,7 +23,6 @@ interface ProjectsViewProps {
   pins: string[];
   onRefresh: () => void;
   onOpen: (id: string) => void;
-  onTemplates: () => void;
   onTogglePin: (id: string) => void;
 }
 
@@ -41,7 +40,6 @@ export function ProjectsView({
   pins,
   onRefresh,
   onOpen,
-  onTemplates,
   onTogglePin,
 }: ProjectsViewProps) {
   const [details, setDetails] = useState<Record<string, ProjectSummary>>({});
@@ -272,9 +270,6 @@ export function ProjectsView({
               if (file) void importFile(file);
             }}
           />
-          <button type="button" class="btn" onClick={onTemplates}>
-            {t('nav.templates')}
-          </button>
           <button
             type="button"
             class="btn"
@@ -316,7 +311,7 @@ export function ProjectsView({
             const pinned = pinnedSet.has(entry.id);
             return (
               <div
-                class={`project-card${pinned ? ' pinned' : ''}`}
+                class={`project-card${pinned ? ' pinned' : ''}${menuFor === entry.id ? ' menu-open' : ''}`}
                 key={entry.id}
                 onClick={() => onOpen(entry.id)}
                 role="button"

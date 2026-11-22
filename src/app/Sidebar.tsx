@@ -102,6 +102,14 @@ export function Sidebar({
         </button>
         <button
           type="button"
+          class={`btn btn-ghost btn-icon${active === 'templates' ? ' active' : ''}`}
+          title={t('templates.library')}
+          onClick={onTemplates}
+        >
+          <IconLayout size={16} />
+        </button>
+        <button
+          type="button"
           class="btn btn-ghost btn-icon"
           title={t('projects.new')}
           onClick={onCreate}
@@ -185,16 +193,6 @@ export function Sidebar({
           </div>
         </div>
         <div class="side-actions">
-          <button
-            type="button"
-            class={`nav-item${active === 'templates' ? ' active' : ''}`}
-            onClick={onTemplates}
-          >
-            <span class="nav-icon">
-              <IconLayout size={18} />
-            </span>
-            {t('nav.templates')}
-          </button>
           <button
             type="button"
             class={`nav-item${active === 'calculator' ? ' active' : ''}`}

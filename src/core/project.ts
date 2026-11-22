@@ -187,6 +187,8 @@ export interface Annotation {
   color?: string;
   /** Прозрачность рисунка поверх подложки: 0…1. */
   opacity?: number;
+  /** Пунктирный контур. */
+  dashed?: boolean;
 }
 
 export interface Layer {
