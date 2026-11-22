@@ -65,7 +65,7 @@
         "AppImage"
       ],
       "category": "Network",
-      "artifactName": "VibeNetmap-${version}-${arch}.${ext}"
+      "artifactName": "NetMapPlanner-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {

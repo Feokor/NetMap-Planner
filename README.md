@@ -190,10 +190,38 @@ npm run android:release   # -> release/NetMapPlanner-<версия>-release.apk
 Если установлен GitHub CLI: `gh workflow run build.yml`. Для публичного репозитория минуты
 Actions бесплатны; у приватного — ограничены квотой.
 
-Workflow только собирает артефакты и **не публикует** GitHub Releases, поэтому `GH_TOKEN`
-не нужен: electron-builder запускается с `--publish never`, а файлы забираются из Artifacts.
-Если позже понадобится авто-релиз по тегу, это делается отдельной job с
-`permissions: contents: write` и `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`.
+### Автоматический GitHub Release
+
+Workflow умеет не только складывать файлы в Artifacts, но и сразу создавать релиз:
+
+- **по тегу** `v*` (например `git tag v0.5.3 && git push origin v0.5.3`);
+- **вручную**: Actions → build → Run workflow → включить `publish_release` и при желании
+  указать `tag` (`v0.5.3`); пусто — тег берётся из `package.json`.
+
+Или из терминала:
+
+```powershell
+gh workflow run build.yml -f publish_release=true -f tag=v0.5.3
+```
+
+Job `release` скачивает все артефакты (Windows zip/portable, Tauri exe, AppImage, APK) и
+публикует GitHub Release с автоматическими заметками. Ему выданы только права
+`contents: write`; `GH_TOKEN` подставляется из `secrets.GITHUB_TOKEN` внутри action.
+
+**Подписанный Android в CI.** Добавьте в Settings → Secrets and variables → Actions:
+
+- `ANDROID_KEYSTORE_BASE64` — содержимое `android/keystore/netmap-release.jks` в base64;
+- `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` — пароли из `android/keystore.properties`;
+- `ANDROID_KEY_ALIAS` — `netmap`.
+
+PowerShell для base64:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android/keystore/netmap-release.jks"))
+```
+
+Если секретов нет, CI соберёт debug APK; если есть — подписанный release APK. Windows и Tauri
+пока без подписи: доверие SmartScreen требует платного сертификата Authenticode.
 
 
 В git попадают только исходники, конфиги, тесты, CI и скрипты сборки. Не попадают
