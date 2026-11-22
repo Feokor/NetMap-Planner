@@ -11,8 +11,11 @@ import {
   type ProjectIndexEntry,
 } from '../app/projects';
 import { openTextFile } from '../app/files';
+import { storage } from '../app/storage';
+import { loadTemplates, saveTemplates } from '../app/templates';
 import { exportDocument, importAsNewProject, summarize, type ProjectSummary } from '../core/project';
 import { csvToProject } from '../core/csv';
+import type { DeviceTemplate } from '../core/templates';
 import { t } from '../i18n';
 import { IconMap, IconMore } from '../ui/icons';
 import { Modal } from '../ui/Modal';
@@ -23,6 +26,7 @@ interface ProjectsViewProps {
   pins: string[];
   onRefresh: () => void;
   onOpen: (id: string) => void;
+  onRestorePreferences: (prefs: { theme?: 'dark' | 'light'; pins?: string[] }) => void;
   onTogglePin: (id: string) => void;
 }
 
@@ -40,6 +44,7 @@ export function ProjectsView({
   pins,
   onRefresh,
   onOpen,
+  onRestorePreferences,
   onTogglePin,
 }: ProjectsViewProps) {
   const [details, setDetails] = useState<Record<string, ProjectSummary>>({});
@@ -138,7 +143,7 @@ export function ProjectsView({
     }
   };
 
-  /** Резервная копия всех проектов одним файлом. */
+  /** Резервная копия: проекты, шаблоны, история калькулятора и настройки. */
   const exportBackup = async () => {
     try {
       const projects = [];
@@ -146,11 +151,19 @@ export function ProjectsView({
         const doc = await loadProject(entry.id);
         if (doc) projects.push(doc);
       }
+      const templates = await loadTemplates();
+      const calculatorHistory = (await storage.get<unknown[]>('calc.history')) ?? [];
+      const theme = await storage.get<'dark' | 'light'>('ui.theme');
+      const pins = await storage.get<string[]>('ui.pins');
+      const minimap = await storage.get<boolean>('ui.minimap');
       const backup = {
         schema: 'netmap-backup',
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
         projects,
+        templates,
+        calculatorHistory,
+        preferences: { theme, pins, minimap },
       };
       const date = new Date().toISOString().slice(0, 10);
       await downloadText(`netmap-backup-${date}.json`, JSON.stringify(backup, null, 2));
@@ -159,13 +172,73 @@ export function ProjectsView({
     }
   };
 
-  const importBackup = async (projects: unknown[]) => {
+  const importBackup = async (raw: {
+    projects?: unknown[];
+    templates?: unknown;
+    calculatorHistory?: unknown;
+    preferences?: { theme?: string; pins?: unknown; minimap?: unknown };
+  }) => {
     let lastId: string | null = null;
-    for (const raw of projects) {
-      const doc = importAsNewProject(raw);
+    for (const project of raw.projects ?? []) {
+      const doc = importAsNewProject(project);
       await saveProject(doc);
       lastId = doc.id;
     }
+
+    if (Array.isArray(raw.templates)) {
+      const templates = raw.templates
+        .filter(
+          (item): item is DeviceTemplate =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof (item as DeviceTemplate).id === 'string' &&
+            typeof (item as DeviceTemplate).name === 'string' &&
+            Array.isArray((item as DeviceTemplate).ports),
+        )
+        .map((item) => ({
+          ...item,
+          kind: item.kind ?? 'pc',
+          layer: item.layer ?? 'L3',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          favorite: item.favorite === true,
+          ports: item.ports.map((port) => ({
+            name: port.name || 'eth0',
+            media: port.media ?? 'copper',
+            speed: port.speed ?? '1G',
+            mode: port.mode ?? 'access',
+          })),
+        }));
+      if (Array.isArray(raw.templates)) {
+        await saveTemplates(templates);
+      }
+    }
+
+    if (Array.isArray(raw.calculatorHistory)) {
+      await storage.set('calc.history', raw.calculatorHistory);
+    }
+
+    const preferences = raw.preferences;
+    if (preferences && (preferences.theme === 'dark' || preferences.theme === 'light')) {
+      await storage.set('ui.theme', preferences.theme);
+    }
+    if (preferences && Array.isArray(preferences.pins)) {
+      await storage.set('ui.pins', preferences.pins);
+    }
+    if (preferences && typeof preferences.minimap === 'boolean') {
+      await storage.set('ui.minimap', preferences.minimap);
+    }
+    if (preferences) {
+      onRestorePreferences({
+        theme:
+          preferences.theme === 'dark' || preferences.theme === 'light'
+            ? preferences.theme
+            : undefined,
+        pins: Array.isArray(preferences.pins)
+          ? preferences.pins.filter((item): item is string => typeof item === 'string')
+          : undefined,
+      });
+    }
+
     onRefresh();
     if (lastId) onOpen(lastId);
   };
@@ -191,7 +264,7 @@ export function ProjectsView({
     if (looksLikeJson) {
       const raw = JSON.parse(text);
       if (raw && raw.schema === 'netmap-backup' && Array.isArray(raw.projects)) {
-        await importBackup(raw.projects);
+        await importBackup(raw);
         return;
       }
       await importJson(text);

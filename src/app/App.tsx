@@ -246,6 +246,10 @@ export function App() {
             pins={pins}
             onRefresh={() => void refreshProjects()}
             onOpen={openProject}
+            onRestorePreferences={(prefs) => {
+              if (prefs.theme) setTheme(prefs.theme);
+              if (prefs.pins) setPins(prefs.pins);
+            }}
             onTogglePin={togglePin}
           />
         )}

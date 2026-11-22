@@ -19,6 +19,7 @@ import { t } from '../i18n';
 import { storage } from '../app/storage';
 import { createFromTemplate, uniqueDeviceName, type DeviceTemplate } from '../core/templates';
 import { TemplatePicker } from '../ui/TemplatePicker';
+import { SearchSelect } from '../ui/SearchSelect';
 import { Modal } from '../ui/Modal';
 import {
   IconArrow,
@@ -1362,23 +1363,21 @@ export function CanvasView({
           {(['a', 'b'] as const).map((side) => {
             const device = doc.devices.find((item) => item.id === selectedLink[side].deviceId);
             return (
-              <select
+              <SearchSelect
                 key={side}
-                class="input select canvas-media"
-                title={t('canvas.link.port')}
                 value={selectedLink[side].portId ?? ''}
-                onChange={(event) =>
-                  setLinkPort(side, (event.target as HTMLSelectElement).value || null)
+                placeholder={t('canvas.link.port')}
+                emptyLabel={t('canvas.link.noPort')}
+                onChange={(next) => setLinkPort(side, next || null)}
+                options={
+                  device
+                    ? linkablePorts(device).map((port) => ({
+                        value: port.id,
+                        label: `${device.name} / ${port.name}`,
+                      }))
+                    : []
                 }
-              >
-                <option value="">{t('canvas.link.noPort')}</option>
-                {device &&
-                  linkablePorts(device).map((port) => (
-                    <option key={port.id} value={port.id}>
-                      {device.name} / {port.name}
-                    </option>
-                  ))}
-              </select>
+              />
             );
           })}
           <select

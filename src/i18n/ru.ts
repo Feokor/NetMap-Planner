@@ -164,7 +164,7 @@ export const ru: Record<string, string> = {
   'projects.importCsvName': 'Импорт CSV',
   'projects.import': 'Импорт',
   'projects.backup': 'Бэкап',
-  'projects.backupHint': 'Скачать все проекты одним JSON-файлом',
+  'projects.backupHint': 'Скачать все проекты, шаблоны, историю калькулятора и настройки одним JSON',
   'projects.dropHint': 'Отпустите файл, чтобы импортировать JSON-карту или CSV',
   'projects.export': 'Экспорт',
   'projects.exportAs': 'Экспорт как…',
