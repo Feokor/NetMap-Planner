@@ -18,6 +18,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event_name }}-${{ inputs.publish_release }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     runs-on: windows-latest
