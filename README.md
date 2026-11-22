@@ -190,6 +190,11 @@ npm run android:release   # -> release/NetMapPlanner-<версия>-release.apk
 Если установлен GitHub CLI: `gh workflow run build.yml`. Для публичного репозитория минуты
 Actions бесплатны; у приватного — ограничены квотой.
 
+Workflow только собирает артефакты и **не публикует** GitHub Releases, поэтому `GH_TOKEN`
+не нужен: electron-builder запускается с `--publish never`, а файлы забираются из Artifacts.
+Если позже понадобится авто-релиз по тегу, это делается отдельной job с
+`permissions: contents: write` и `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`.
+
 
 В git попадают только исходники, конфиги, тесты, CI и скрипты сборки. Не попадают
 `node_modules/`, локальный тулчейн `.tools/`, временные `.tmp/`, собранные `dist/` и

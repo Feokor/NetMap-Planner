@@ -13,8 +13,8 @@
     "test:watch": "vitest",
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron": "electron .",
-    "dist:portable": "npm run build && electron-builder --win zip && node scripts/make-portable.mjs",
-    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:portable": "npm run build && electron-builder --win zip --publish never && node scripts/make-portable.mjs",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
     "android:key": "node scripts/make-android-key.mjs",
@@ -40,6 +40,7 @@
   "build": {
     "appId": "ru.vibe.netmap",
     "productName": "NetMap Planner",
+    "publish": null,
     "compression": "maximum",
     "electronLanguages": [
       "ru",
