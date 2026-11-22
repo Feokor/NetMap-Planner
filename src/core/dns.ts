@@ -9,11 +9,16 @@ import { parseAddress } from './ip';
 
 export interface ForwardRecord {
   zone: string;
+  zoneId: string;
   name: string;
-  type: 'A' | 'AAAA';
+  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX';
   value: string;
   deviceId: string;
   deviceName: string;
+  /** Ручная запись (иначе автоматическая). */
+  manual?: boolean;
+  /** id ручной записи. */
+  id?: string;
 }
 
 export interface ReverseRecord {
@@ -140,9 +145,20 @@ function pickDepth(doc: ProjectDocument, addresses: string[]): number {
 
 /** Автоматические записи проекта: A/AAAA и PTR. */
 export function dnsRecords(doc: ProjectDocument): DnsRecords {
+  const state = dnsState(doc);
+  const hidden = state.hidden ?? [];
   const forward: ForwardRecord[] = [];
   const ipv4Addresses: string[] = [];
   const seen = new Set<string>();
+
+  const isHidden = (zoneId: string, name: string, type: string, value: string) =>
+    hidden.some(
+      (item) =>
+        item.zoneId === zoneId &&
+        item.name === name &&
+        item.type === type &&
+        (item.permanent || item.value === value),
+    );
 
   for (const device of doc.devices) {
     const zone = zoneForDevice(doc, device);
@@ -155,11 +171,13 @@ export function dnsRecords(doc: ProjectDocument): DnsRecords {
         try {
           const parsed = parseAddress(ip.address);
           const type = parsed.family === 4 ? 'A' : 'AAAA';
+          if (isHidden(zone.id, name, type, ip.address)) continue;
           const key = `${zone.name}|${name}|${type}|${ip.address}`;
           if (seen.has(key)) continue;
           seen.add(key);
           forward.push({
             zone: zone.name,
+            zoneId: zone.id,
             name,
             type,
             value: ip.address,
@@ -174,8 +192,35 @@ export function dnsRecords(doc: ProjectDocument): DnsRecords {
     }
   }
 
+  for (const record of state.manual ?? []) {
+    const zone = state.zones.find((item) => item.id === record.zoneId);
+    if (!zone) continue;
+    const rawName = record.name.trim().toLowerCase();
+    const name = rawName === '@' ? '@' : normalizeDnsName(rawName);
+    const value = record.value.trim();
+    if (!name || !value) continue;
+    const key = `${zone.name}|${name}|${record.type}|${value}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    forward.push({
+      zone: zone.name,
+      zoneId: zone.id,
+      name,
+      type: record.type,
+      value,
+      deviceId: '',
+      deviceName: '',
+      manual: true,
+      id: record.id,
+    });
+    if (record.type === 'A') ipv4Addresses.push(value);
+  }
+
   forward.sort((a, b) =>
-    a.zone.localeCompare(b.zone) || a.name.localeCompare(b.name) || a.value.localeCompare(b.value),
+    a.zone.localeCompare(b.zone) ||
+    a.name.localeCompare(b.name) ||
+    a.type.localeCompare(b.type) ||
+    a.value.localeCompare(b.value),
   );
 
   const depth = pickDepth(doc, ipv4Addresses);
@@ -200,7 +245,7 @@ export function dnsRecords(doc: ProjectDocument): DnsRecords {
     zone.records.push({
       name: owner === '@' ? zoneName : `${owner}.${zoneName}`,
       owner,
-      value: `${record.name}.${record.zone}`,
+      value: record.name === '@' ? record.zone : `${record.name}.${record.zone}`,
       deviceId: record.deviceId,
       deviceName: record.deviceName,
     });
@@ -257,7 +302,11 @@ export function exportBind(doc: ProjectDocument): string {
       lines.push('; записей нет');
     } else {
       for (const record of zoneRecords) {
-        lines.push(`${record.name} IN ${record.type} ${record.value}`);
+        const value =
+          record.type === 'TXT'
+            ? `"${record.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+            : record.value;
+        lines.push(`${record.name} IN ${record.type} ${value}`);
       }
     }
     lines.push('');

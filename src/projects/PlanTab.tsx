@@ -20,6 +20,7 @@ import { blockLast, makeBlock, blocksOverlap } from '../core/subnet';
 import { t } from '../i18n';
 import { CopyButton } from '../ui/CopyButton';
 import { Modal } from '../ui/Modal';
+import { SearchSelect } from '../ui/SearchSelect';
 import { IconEdit, IconMore, IconTrash } from '../ui/icons';
 
 interface PlanTabProps {
@@ -808,27 +809,19 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
               <label class="field-label" for="group-parent">
                 {t('plan.groupParent')}
               </label>
-              <select
-                id="group-parent"
-                class="input select"
+              <SearchSelect
                 value={groupModal.parentId ?? ''}
-                onChange={(event) =>
+                emptyLabel={t('plan.groupRoot')}
+                placeholder={t('plan.groupParent')}
+                onChange={(next) =>
                   setGroupModal((current) =>
-                    current
-                      ? { ...current, parentId: (event.target as HTMLSelectElement).value || null }
-                      : current,
+                    current ? { ...current, parentId: next || null } : current,
                   )
                 }
-              >
-                <option value="">{t('plan.groupRoot')}</option>
-                {planGroups
+                options={planGroups
                   .filter((group) => depthOf(group.id) < IP_GROUP_MAX_DEPTH)
-                  .map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {groupLabel(group)}
-                    </option>
-                  ))}
-              </select>
+                  .map((group) => ({ value: group.id, label: groupLabel(group) }))}
+              />
             </>
           )}
         </Modal>
@@ -855,20 +848,16 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
           <label class="field-label" for="move-group">
             {t('plan.group')}
           </label>
-          <select
-            id="move-group"
-            class="input select"
+          <SearchSelect
             value={moveGroup}
-            onChange={(event) => setMoveGroup((event.target as HTMLSelectElement).value)}
-          >
-            <option value="">{t('plan.groupNone')}</option>
-            {planGroups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {'— '.repeat(Math.max(depthOf(group.id) - 1, 0))}
-                {group.name}
-              </option>
-            ))}
-          </select>
+            emptyLabel={t('plan.groupNone')}
+            placeholder={t('plan.group')}
+            onChange={setMoveGroup}
+            options={planGroups.map((group) => ({
+              value: group.id,
+              label: `${'— '.repeat(Math.max(depthOf(group.id) - 1, 0))}${group.name}`,
+            }))}
+          />
         </Modal>
       )}
 
@@ -894,23 +883,15 @@ export function PlanTab({ doc, onChange }: PlanTabProps) {
           <label class="field-label" for="dhcp-device">
             {t('plan.dhcpDevice')}
           </label>
-          <select
-            id="dhcp-device"
-            class="input select"
+          <SearchSelect
             value={dhcp.address}
-            onChange={(event) =>
-              setDhcp((current) =>
-                current ? { ...current, address: (event.target as HTMLSelectElement).value } : current,
-              )
+            options={ports}
+            placeholder={ports.length === 0 ? t('plan.dhcpNoPorts') : t('plan.dhcpDevice')}
+            title={t('plan.dhcpDevice')}
+            onChange={(next) =>
+              setDhcp((current) => (current ? { ...current, address: next } : current))
             }
-          >
-            {ports.length === 0 && <option value="">{t('plan.dhcpNoPorts')}</option>}
-            {ports.map((port) => (
-              <option key={port.value} value={port.value}>
-                {port.label}
-              </option>
-            ))}
-          </select>
+          />
           <div class="form-hint" style={{ marginTop: '6px' }}>
             {t('plan.dhcpServerHint')}
           </div>

@@ -29,6 +29,7 @@ import { defaultDnsName, deviceFqdn, dnsState } from '../core/dns';
 import { nextFreeAnywhere } from '../core/ipPlan';
 import { t } from '../i18n';
 import { IconTrash } from '../ui/icons';
+import { SearchSelect } from '../ui/SearchSelect';
 
 interface DeviceEditorProps {
   doc: ProjectDocument;
@@ -589,24 +590,16 @@ export function DeviceEditor({
                 <label class="field-label" for="device-dns-zone">
                   {t('device.dnsZone')}
                 </label>
-                <select
-                  id="device-dns-zone"
-                  class="input select"
+                <SearchSelect
                   value={device.dnsZoneId ?? ''}
-                  onChange={(event) =>
-                    update({
-                      dnsZoneId: (event.target as HTMLSelectElement).value || null,
-                    })
-                  }
-                >
-                  <option value="">{t('device.dnsDefault')}</option>
-                  {dnsZones.map((zone) => (
-                    <option key={zone.id} value={zone.id}>
-                      {zone.name}
-                      {zone.default ? ' ★' : ''}
-                    </option>
-                  ))}
-                </select>
+                  emptyLabel={t('device.dnsDefault')}
+                  placeholder={t('device.dnsZone')}
+                  onChange={(next) => update({ dnsZoneId: next || null })}
+                  options={dnsZones.map((zone) => ({
+                    value: zone.id,
+                    label: `${zone.name}${zone.default ? ' ★' : ''}`,
+                  }))}
+                />
               </div>
             </div>
             {fqdn ? (
@@ -734,21 +727,17 @@ export function DeviceEditor({
                         </span>
                       ))}
                       {available.length > 0 && (
-                        <select
-                          class="input select bridge-add"
+                        <SearchSelect
                           value=""
-                          onChange={(event) => {
-                            addMember(bridge.id, (event.target as HTMLSelectElement).value);
-                            (event.target as HTMLSelectElement).value = '';
+                          placeholder={t('device.bridge.addMember')}
+                          options={available.map((port) => ({
+                            value: port.id,
+                            label: port.name,
+                          }))}
+                          onChange={(next) => {
+                            if (next) addMember(bridge.id, next);
                           }}
-                        >
-                          <option value="">{t('device.bridge.addMember')}</option>
-                          {available.map((port) => (
-                            <option key={port.id} value={port.id}>
-                              {port.name}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       )}
                     </div>
 

@@ -41,6 +41,8 @@ function sample(): ProjectDocument {
     dns: {
       zones: [{ id: 'dns_hq', name: 'hq.example', default: true }],
       settings: { reverseMode: 'auto', reverseDepth: 2, ttl: 3600 },
+      manual: [],
+      hidden: [],
     },
   };
 }
@@ -124,8 +126,42 @@ describe('DNS-зоны', () => {
     expect(text).toContain('нет DNS-зон');
   });
 
+  it('скрывает авто-запись до пересчёта и навсегда', () => {
+    let doc = sample();
+    doc = withDevice(doc, deviceWithIps('A', ['192.168.7.1/24']));
+    doc.dns!.hidden = [
+      { id: 'h1', zoneId: 'dns_hq', name: 'a', type: 'A', value: '192.168.7.1', permanent: false },
+    ];
+    expect(dnsRecords(doc).forward).toHaveLength(0);
+
+    // Адрес изменился — временное скрытие больше не совпадает.
+    doc.devices[0].ports[0].ips[0].address = '192.168.7.2';
+    expect(dnsRecords(doc).forward).toHaveLength(1);
+
+    doc.dns!.hidden = [
+      { id: 'h2', zoneId: 'dns_hq', name: 'a', type: 'A', value: '192.168.7.1', permanent: true },
+    ];
+    expect(dnsRecords(doc).forward.filter((item) => item.name === 'a')).toHaveLength(0);
+  });
+
+  it('добавляет ручные записи и экранирует TXT', () => {
+    const doc = sample();
+    doc.dns!.manual = [
+      { id: 'm1', zoneId: 'dns_hq', name: 'www', type: 'CNAME', value: 'hq-rtr.hq.example.' },
+      { id: 'm2', zoneId: 'dns_hq', name: '@', type: 'TXT', value: 'v=spf1 -all' },
+    ];
+    const records = dnsRecords(doc);
+    expect(records.forward.map((item) => item.name)).toEqual(['@', 'www']);
+    expect(records.forward.every((item) => item.manual)).toBe(true);
+    const text = exportBind(doc);
+    expect(text).toContain('www IN CNAME hq-rtr.hq.example.');
+    expect(text).toContain('@ IN TXT "v=spf1 -all"');
+  });
+
   it('defaultDns даёт настройки по умолчанию', () => {
     expect(defaultDns().settings.reverseMode).toBe('auto');
     expect(defaultDns().zones).toEqual([]);
+    expect(defaultDns().manual).toEqual([]);
+    expect(defaultDns().hidden).toEqual([]);
   });
 });

@@ -253,12 +253,40 @@ export interface DnsSettings {
 export interface DnsState {
   zones: DnsZone[];
   settings: DnsSettings;
+  manual: DnsManualRecord[];
+  hidden: DnsHiddenRecord[];
+}
+
+export type DnsManualType = 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'MX';
+
+export interface DnsManualRecord {
+  id: string;
+  zoneId: string;
+  name: string;
+  type: DnsManualType;
+  value: string;
+  ttl?: number;
+}
+
+/**
+ * Скрытая автоматическая запись. temporary привязана к значению (пропадёт,
+ * если адрес изменится), permanent скрывает имя и тип при любом значении.
+ */
+export interface DnsHiddenRecord {
+  id: string;
+  zoneId: string;
+  name: string;
+  type: 'A' | 'AAAA';
+  value: string;
+  permanent: boolean;
 }
 
 export function defaultDns(): DnsState {
   return {
     zones: [],
     settings: { reverseMode: 'auto', reverseDepth: 2, ttl: 3600 },
+    manual: [],
+    hidden: [],
   };
 }
 
@@ -1390,6 +1418,30 @@ export function migrateDocument(raw: unknown): ProjectDocument {
           ? (raw.dns.settings as Partial<DnsSettings>)
           : {}),
       },
+      manual:
+        isRecord(raw.dns) && Array.isArray(raw.dns.manual)
+          ? (raw.dns.manual as DnsManualRecord[]).filter(
+              (record) =>
+                isRecord(record) &&
+                typeof record.id === 'string' &&
+                typeof record.zoneId === 'string' &&
+                typeof record.name === 'string' &&
+                typeof record.type === 'string' &&
+                typeof record.value === 'string',
+            )
+          : [],
+      hidden:
+        isRecord(raw.dns) && Array.isArray(raw.dns.hidden)
+          ? (raw.dns.hidden as DnsHiddenRecord[]).filter(
+              (record) =>
+                isRecord(record) &&
+                typeof record.id === 'string' &&
+                typeof record.zoneId === 'string' &&
+                typeof record.name === 'string' &&
+                (record.type === 'A' || record.type === 'AAAA') &&
+                typeof record.value === 'string',
+            )
+          : [],
     },
   };
 
