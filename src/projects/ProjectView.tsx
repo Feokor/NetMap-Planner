@@ -18,10 +18,20 @@ import {
   validateProject,
   warningCount,
 } from '../core/project';
-import { DEVICE_TEMPLATES, createFromTemplate, portsLabel, uniqueDeviceName } from '../core/templates';
+import { exportDrawio } from '../core/drawio';
+import {
+  type DeviceTemplate,
+  createFromTemplate,
+  templateFromDevice,
+  uniqueDeviceName,
+  uniqueTemplateName,
+} from '../core/templates';
+import { loadTemplates, saveTemplates } from '../app/templates';
 import { t } from '../i18n';
 import { IconCheck, IconExpand, IconLayers, IconMenu, IconMore, IconRedo, IconUndo } from '../ui/icons';
 import { Modal } from '../ui/Modal';
+import { TemplateEditor } from '../ui/TemplateEditor';
+import { TemplatePicker } from '../ui/TemplatePicker';
 import { CanvasView } from '../canvas/CanvasView';
 import { ChecksTab } from './ChecksTab';
 import { DeviceEditor } from './DeviceEditor';
@@ -32,6 +42,7 @@ interface ProjectViewProps {
   projectId: string;
   onBack: () => void;
   onMenu: () => void;
+  onTemplates: () => void;
   pinned: boolean;
   onTogglePin: () => void;
   onDeleted: () => void;
@@ -89,6 +100,7 @@ export function ProjectView({
   projectId,
   onBack,
   onMenu,
+  onTemplates,
   pinned,
   onTogglePin,
   onDeleted,
@@ -103,9 +115,13 @@ export function ProjectView({
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [deviceTemplate, setDeviceTemplate] = useState<DeviceTemplate | null>(null);
   const [groupName, setGroupName] = useState('');
   const [projectMenu, setProjectMenu] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'drawio'>('json');
+  const [exportName, setExportName] = useState('');
   const [panel, setPanel] = useState<'devices' | 'plan' | 'checks' | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
   const docRef = useRef<ProjectDocument | null>(null);
@@ -244,19 +260,27 @@ export function ProjectView({
     onBack();
   };
 
-  const addDevice = (templateId?: string | null) => {
+  const addDevice = (template: DeviceTemplate | null) => {
     if (!doc) return;
-    const template = templateId
-      ? DEVICE_TEMPLATES.find((item) => item.id === templateId) ?? null
-      : null;
     const device: Device = createFromTemplate(
       template,
-      uniqueDeviceName(doc, template?.id ?? 'device'),
+      uniqueDeviceName(doc, template?.kind ?? 'device'),
     );
     device.canvas = { x: 80, y: 80 };
     apply((current) => ({ ...current, devices: [...current.devices, device] }));
-    setTemplatesOpen(false);
+    setPickerOpen(false);
     setEditingId(device.id);
+  };
+
+  const saveDeviceAsTemplate = async (template: DeviceTemplate) => {
+    const items = await loadTemplates();
+    const next: DeviceTemplate = {
+      ...template,
+      name: uniqueTemplateName(items, template.name),
+      updatedAt: Date.now(),
+    };
+    await saveTemplates([...items, next]);
+    setDeviceTemplate(null);
   };
 
   const deleteDevice = (device: Device) => {
@@ -311,12 +335,28 @@ export function ProjectView({
     }
   };
 
-  const exportCsv = async () => {
+  const openExportAs = () => {
     if (!doc) return;
+    setExportName(safeFilename(doc.name));
+    setExportFormat('json');
+    setExportOpen(true);
+  };
+
+  const exportAs = async () => {
+    if (!doc) return;
+    const base = safeFilename(exportName.trim() || doc.name);
     try {
-      await downloadText(`${safeFilename(doc.name)}.csv`, devicesCsv(doc), 'text/csv');
+      await flush();
+      if (exportFormat === 'json') {
+        await downloadText(`${base}.netmap.json`, exportDocument(doc));
+      } else if (exportFormat === 'csv') {
+        await downloadText(`${base}.csv`, devicesCsv(doc), 'text/csv');
+      } else {
+        await downloadText(`${base}.drawio`, exportDrawio(doc), 'application/xml');
+      }
+      setExportOpen(false);
     } catch (error) {
-      console.error('[export csv]', error);
+      console.error('[export as]', error);
     }
   };
 
@@ -422,8 +462,8 @@ export function ProjectView({
             <button type="button" onClick={() => { setProjectMenu(false); void exportJson(); }}>
               {t('projects.export')} JSON
             </button>
-            <button type="button" onClick={() => { setProjectMenu(false); void exportCsv(); }}>
-              {t('projects.export')} CSV
+            <button type="button" onClick={() => { setProjectMenu(false); openExportAs(); }}>
+              {t('projects.exportAs')}
             </button>
             <button type="button" onClick={() => { setProjectMenu(false); onTogglePin(); }}>
               ★ {pinned ? t('projects.unpin') : t('projects.pin')}
@@ -447,6 +487,7 @@ export function ProjectView({
           onRedo={redo}
           layersOpen={layersOpen}
           onToggleLayers={() => setLayersOpen((value) => !value)}
+          onOpenTemplates={onTemplates}
           bottomActions={[
             {
               id: 'devices',
@@ -529,7 +570,7 @@ export function ProjectView({
                     >
                       {t('projects.groups')}
                     </button>
-                    <button type="button" class="btn btn-primary" onClick={() => setTemplatesOpen(true)}>
+                    <button type="button" class="btn btn-primary" onClick={() => setPickerOpen(true)}>
                       ＋ {t('projects.addDevice')}
                     </button>
                   </div>
@@ -568,40 +609,74 @@ export function ProjectView({
           }
           onClose={() => setEditingId(null)}
           onDelete={() => deleteDevice(editing)}
+          onSaveTemplate={() => setDeviceTemplate(templateFromDevice(editing, editing.name))}
         />
       )}
 
-      {templatesOpen && (
+      {pickerOpen && (
+        <TemplatePicker
+          onPick={addDevice}
+          onClose={() => setPickerOpen(false)}
+          onOpenLibrary={() => {
+            setPickerOpen(false);
+            onTemplates();
+          }}
+        />
+      )}
+
+      {deviceTemplate && (
+        <TemplateEditor
+          title={t('templates.saveAsTitle')}
+          initial={deviceTemplate}
+          onSave={(template) => void saveDeviceAsTemplate(template)}
+          onClose={() => setDeviceTemplate(null)}
+        />
+      )}
+
+      {exportOpen && (
         <Modal
-          title={t('templates.title')}
-          onClose={() => setTemplatesOpen(false)}
+          title={t('export.title')}
+          onClose={() => setExportOpen(false)}
           footer={
-            <button type="button" class="btn" onClick={() => setTemplatesOpen(false)}>
-              {t('projects.cancel')}
-            </button>
+            <>
+              <button type="button" class="btn" onClick={() => setExportOpen(false)}>
+                {t('projects.cancel')}
+              </button>
+              <button type="button" class="btn btn-primary" onClick={() => void exportAs()}>
+                {t('export.action')}
+              </button>
+            </>
           }
         >
-          <div class="form-hint" style={{ marginBottom: '10px' }}>
-            {t('templates.hint')}
+          <label class="field-label" for="export-name">
+            {t('export.name')}
+          </label>
+          <input
+            id="export-name"
+            class="input"
+            autofocus
+            value={exportName}
+            onInput={(event) => setExportName((event.target as HTMLInputElement).value)}
+          />
+          <div style={{ marginTop: '12px' }}>
+            <label class="field-label" for="export-format">
+              {t('export.format')}
+            </label>
+            <select
+              id="export-format"
+              class="input select"
+              value={exportFormat}
+              onChange={(event) =>
+                setExportFormat((event.target as HTMLSelectElement).value as typeof exportFormat)
+              }
+            >
+              <option value="json">{t('export.json')}</option>
+              <option value="csv">{t('export.csv')}</option>
+              <option value="drawio">{t('export.drawio')}</option>
+            </select>
           </div>
-          <div class="template-grid">
-            <button type="button" class="template-card" onClick={() => addDevice(null)}>
-              <strong>{t('templates.empty')}</strong>
-              <span class="muted">{portsLabel(1)}</span>
-            </button>
-            {DEVICE_TEMPLATES.map((template) => (
-              <button
-                type="button"
-                class="template-card"
-                key={template.id}
-                onClick={() => addDevice(template.id)}
-              >
-                <strong>{t(`devkind.${template.kind}`)}</strong>
-                <span class="muted">
-                  {portsLabel(template.ports.length)} · {template.layer}
-                </span>
-              </button>
-            ))}
+          <div class="form-hint" style={{ marginTop: '10px' }}>
+            {t('export.hint')}
           </div>
         </Modal>
       )}

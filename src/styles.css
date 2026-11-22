@@ -1487,6 +1487,10 @@ textarea {
   gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
 }
 
 .modal-head h2 {
@@ -1505,7 +1509,11 @@ textarea {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 0 18px 18px;
+  padding: 12px 18px 18px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--panel);
 }
 
 .drawer-overlay {
@@ -3347,6 +3355,122 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px;
+}
+
+.template-library {
+  margin-top: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.template-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.template-toolbar .input {
+  flex: 1 1 260px;
+  max-width: 460px;
+}
+
+.template-filter,
+.template-favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.template-manage {
+  position: relative;
+  padding: 12px;
+}
+
+.template-manage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.template-manage-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.template-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-form-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.template-form-row > div {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.template-ports-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.template-ports {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-port-row {
+  display: grid;
+  grid-template-columns: minmax(70px, 1.1fr) minmax(90px, 1fr) 64px minmax(84px, 0.9fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.template-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-section {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.template-empty {
+  width: 100%;
+}
+
+.template-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.template-more {
+  align-self: flex-start;
+}
+
+@media (max-width: 620px) {
+  .template-port-row {
+    grid-template-columns: 1fr 1fr auto;
+  }
 }
 
 .template-card {

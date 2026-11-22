@@ -23,6 +23,7 @@ interface ProjectsViewProps {
   pins: string[];
   onRefresh: () => void;
   onOpen: (id: string) => void;
+  onTemplates: () => void;
   onTogglePin: (id: string) => void;
 }
 
@@ -40,6 +41,7 @@ export function ProjectsView({
   pins,
   onRefresh,
   onOpen,
+  onTemplates,
   onTogglePin,
 }: ProjectsViewProps) {
   const [details, setDetails] = useState<Record<string, ProjectSummary>>({});
@@ -270,6 +272,9 @@ export function ProjectsView({
               if (file) void importFile(file);
             }}
           />
+          <button type="button" class="btn" onClick={onTemplates}>
+            {t('nav.templates')}
+          </button>
           <button
             type="button"
             class="btn"

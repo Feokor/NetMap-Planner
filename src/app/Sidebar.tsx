@@ -5,6 +5,7 @@ import {
   IconCalculator,
   IconCopy,
   IconEdit,
+  IconLayout,
   IconMap,
   IconMore,
   IconMoon,
@@ -13,7 +14,7 @@ import {
   IconTrash,
 } from '../ui/icons';
 
-export type ShellSection = 'calculator' | 'projects' | 'project';
+export type ShellSection = 'calculator' | 'projects' | 'project' | 'templates';
 
 interface SidebarProps {
   entries: ProjectIndexEntry[];
@@ -25,6 +26,7 @@ interface SidebarProps {
   version: string;
   onCalculator: () => void;
   onProjects: () => void;
+  onTemplates: () => void;
   onOpenProject: (id: string) => void;
   onCreate: () => void;
   onRename: (entry: ProjectIndexEntry) => void;
@@ -53,6 +55,7 @@ export function Sidebar({
   version,
   onCalculator,
   onProjects,
+  onTemplates,
   onOpenProject,
   onCreate,
   onRename,
@@ -182,6 +185,16 @@ export function Sidebar({
           </div>
         </div>
         <div class="side-actions">
+          <button
+            type="button"
+            class={`nav-item${active === 'templates' ? ' active' : ''}`}
+            onClick={onTemplates}
+          >
+            <span class="nav-icon">
+              <IconLayout size={18} />
+            </span>
+            {t('nav.templates')}
+          </button>
           <button
             type="button"
             class={`nav-item${active === 'calculator' ? ' active' : ''}`}

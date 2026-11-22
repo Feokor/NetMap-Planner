@@ -19,6 +19,7 @@ import {
 import { exportDocument } from '../core/project';
 import { Sidebar, type ShellSection } from './Sidebar';
 import { ProjectsView } from '../projects/ProjectsView';
+import { TemplatesView } from '../projects/TemplatesView';
 import { ProjectView } from '../projects/ProjectView';
 
 type Theme = 'dark' | 'light';
@@ -120,6 +121,12 @@ export function App() {
     closeOnNarrow();
   };
 
+  const openTemplates = () => {
+    setSection('templates');
+    setActiveProjectId(null);
+    closeOnNarrow();
+  };
+
   const openProject = (id: string) => {
     setSection('project');
     setActiveProjectId(id);
@@ -197,6 +204,7 @@ export function App() {
         version={appVersion}
         onCalculator={openCalculator}
         onProjects={openProjects}
+        onTemplates={openTemplates}
         onOpenProject={openProject}
         onCreate={() => void createProject()}
         onRename={(entry) => {
@@ -238,15 +246,19 @@ export function App() {
             pins={pins}
             onRefresh={() => void refreshProjects()}
             onOpen={openProject}
+            onTemplates={openTemplates}
             onTogglePin={togglePin}
           />
         )}
+
+        {section === 'templates' && <TemplatesView onBack={openProjects} />}
 
         {section === 'project' && activeProjectId && (
           <ProjectView
             projectId={activeProjectId}
             onBack={openProjects}
             onMenu={() => setSidebarOpen(true)}
+            onTemplates={openTemplates}
             onTogglePin={() => togglePin(activeProjectId)}
             pinned={pins.includes(activeProjectId)}
             onDeleted={() => {

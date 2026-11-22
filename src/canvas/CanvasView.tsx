@@ -17,7 +17,8 @@ import {
 } from '../core/project';
 import { t } from '../i18n';
 import { storage } from '../app/storage';
-import { DEVICE_TEMPLATES, createFromTemplate, portsLabel, uniqueDeviceName } from '../core/templates';
+import { createFromTemplate, uniqueDeviceName, type DeviceTemplate } from '../core/templates';
+import { TemplatePicker } from '../ui/TemplatePicker';
 import { Modal } from '../ui/Modal';
 import {
   IconArrow,
@@ -102,6 +103,7 @@ export interface CanvasViewProps {
   layersOpen: boolean;
   onToggleLayers: () => void;
   bottomActions?: CanvasBottomAction[];
+  onOpenTemplates?: () => void;
 }
 
 interface DragState {
@@ -148,6 +150,7 @@ export function CanvasView({
   layersOpen,
   onToggleLayers,
   bottomActions = [],
+  onOpenTemplates,
 }: CanvasViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -183,7 +186,7 @@ export function CanvasView({
   const [groupOpen, setGroupOpen] = useState<string | null>(null);
   const [hoverTool, setHoverTool] = useState<CanvasTool | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
@@ -474,10 +477,7 @@ export function CanvasView({
     setTextEdit(null);
   };
 
-  const addDevice = (templateId?: string | null) => {
-    const template = templateId
-      ? DEVICE_TEMPLATES.find((item) => item.id === templateId) ?? null
-      : null;
+  const addDevice = (template: DeviceTemplate | null) => {
     const world = screenToWorld(
       { x: size.width / 2, y: size.height / 2 },
       view,
@@ -491,7 +491,7 @@ export function CanvasView({
     });
     const device = createFromTemplate(
       template,
-      uniqueDeviceName(doc, template?.id ?? 'device'),
+      uniqueDeviceName(doc, template?.kind ?? 'device'),
     );
     device.canvas = { x: spot.x, y: spot.y };
     onChange((current) => ({ ...current, devices: [...current.devices, device] }));
@@ -499,7 +499,7 @@ export function CanvasView({
     setSelectedLinkId(null);
     setSelectedAnnotationId(null);
     setActiveTool('select');
-    setAddMenuOpen(false);
+    setPickerOpen(false);
   };
 
   const deleteSelection = () => {
@@ -1363,36 +1363,14 @@ export function CanvasView({
       )}
       <div class="canvas-toolbar">
         <div class="canvas-tools">
-          <div class="tool-hold">
-            <button
-              type="button"
-              class="btn btn-primary canvas-add"
-              title={t('canvas.addDevice')}
-              onClick={() => setAddMenuOpen((value) => !value)}
-            >
-              ＋
-            </button>
-            {addMenuOpen && (
-              <div class="tool-pop" role="menu">
-                <button
-                  type="button"
-                  onClick={() => addDevice(null)}
-                >
-                  {t('templates.empty')}
-                </button>
-                {DEVICE_TEMPLATES.map((template) => (
-                  <button
-                    type="button"
-                    key={template.id}
-                    onClick={() => addDevice(template.id)}
-                  >
-                    {t(`devkind.${template.kind}`)}
-                    <span class="muted">{portsLabel(template.ports.length)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            class="btn btn-primary canvas-add"
+            title={t('canvas.addDevice')}
+            onClick={() => setPickerOpen(true)}
+          >
+            ＋
+          </button>
           <div class="canvas-sep" />
           {toolButton('select', <IconCursor size={15} />, t('canvas.tool.select'))}
           {toolButton('link', <IconLink size={15} />, t('canvas.tool.link'))}
@@ -1802,6 +1780,21 @@ export function CanvasView({
           </span>
         </div>
       </div>
+
+      {pickerOpen && (
+        <TemplatePicker
+          onPick={(template) => addDevice(template)}
+          onClose={() => setPickerOpen(false)}
+          onOpenLibrary={
+            onOpenTemplates
+              ? () => {
+                  setPickerOpen(false);
+                  onOpenTemplates();
+                }
+              : undefined
+          }
+        />
+      )}
 
       {textEdit && (
         <Modal

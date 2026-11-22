@@ -35,6 +35,7 @@ interface DeviceEditorProps {
   onChange: (updater: (device: Device) => Device) => void;
   onClose: () => void;
   onDelete: () => void;
+  onSaveTemplate: () => void;
 }
 
 function subnetHint(ip: IpAssignment): { text: string; warn: boolean } | null {
@@ -130,7 +131,14 @@ function ipProblems(doc: ProjectDocument, device: Device): Map<string, IpProblem
   return result;
 }
 
-export function DeviceEditor({ doc, device, onChange, onClose, onDelete }: DeviceEditorProps) {
+export function DeviceEditor({
+  doc,
+  device,
+  onChange,
+  onClose,
+  onDelete,
+  onSaveTemplate,
+}: DeviceEditorProps) {
   const [bridgePick, setBridgePick] = useState<string[]>([]);
   const [vlanInput, setVlanInput] = useState<Record<string, string>>({});
   const [openVlan, setOpenVlan] = useState<string | null>(null);
@@ -558,6 +566,14 @@ export function DeviceEditor({ doc, device, onChange, onClose, onDelete }: Devic
                 }}
               />
             </div>
+            <button
+              type="button"
+              class="btn"
+              style={{ marginTop: '12px', width: '100%' }}
+              onClick={onSaveTemplate}
+            >
+              ★ {t('templates.saveAs')}
+            </button>
             <div style={{ marginTop: '12px' }}>
               <label class="field-label">{t('device.note')}</label>
               <textarea
