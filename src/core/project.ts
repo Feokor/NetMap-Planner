@@ -110,6 +110,10 @@ export interface Device {
     note?: string;
   };
   tags: string[];
+  /** DNS-имя внутри зоны; по умолчанию — имя устройства. */
+  dnsName?: string;
+  /** Основная DNS-зона проекта. */
+  dnsZoneId?: string | null;
   /** Основная группа (для совместимости и быстрых фильтров). */
   groupId?: string | null;
   /** Дополнительные группы: устройство может входить в несколько. */
@@ -225,6 +229,39 @@ export interface IpGroup {
 
 export const IP_GROUP_MAX_DEPTH = 3;
 
+/* ------------------------------------------------------------------ */
+/* DNS-зоны                                                            */
+/* ------------------------------------------------------------------ */
+
+export interface DnsZone {
+  id: string;
+  /** Полное имя зоны: hq.example, lab.local. */
+  name: string;
+  description?: string;
+  /** Зона по умолчанию для устройств без явной привязки. */
+  default?: boolean;
+}
+
+export interface DnsSettings {
+  /** Как выбирать глубину обратной зоны. */
+  reverseMode: 'auto' | 'manual';
+  /** Сколько октетов IPv4 оставлять в обратной зоне (1–4). */
+  reverseDepth: number;
+  ttl: number;
+}
+
+export interface DnsState {
+  zones: DnsZone[];
+  settings: DnsSettings;
+}
+
+export function defaultDns(): DnsState {
+  return {
+    zones: [],
+    settings: { reverseMode: 'auto', reverseDepth: 2, ttl: 3600 },
+  };
+}
+
 export interface ProjectSettings {
   defaultView: 'list' | 'canvas';
   grid: number;
@@ -246,6 +283,7 @@ export interface ProjectDocument {
   links: Link[];
   annotations: Annotation[];
   ipPlan: { blocks: IpBlock[]; groups?: IpGroup[] };
+  dns?: DnsState;
 }
 
 export interface ProjectSummary {
@@ -307,6 +345,7 @@ export function createProject(name = 'Новый проект', description = ''
     links: [],
     annotations: [],
     ipPlan: { blocks: [], groups: [] },
+    dns: defaultDns(),
   };
 }
 
@@ -1336,6 +1375,21 @@ export function migrateDocument(raw: unknown): ProjectDocument {
                 Array.isArray(group.blockIds),
             )
           : [],
+    },
+    dns: {
+      zones:
+        isRecord(raw.dns) && Array.isArray(raw.dns.zones)
+          ? (raw.dns.zones as DnsZone[]).filter(
+              (zone) =>
+                isRecord(zone) && typeof zone.id === 'string' && typeof zone.name === 'string',
+            )
+          : [],
+      settings: {
+        ...defaultDns().settings,
+        ...(isRecord(raw.dns) && isRecord(raw.dns.settings)
+          ? (raw.dns.settings as Partial<DnsSettings>)
+          : {}),
+      },
     },
   };
 

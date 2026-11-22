@@ -25,6 +25,7 @@ import {
   vlansOfPort,
 } from '../core/project';
 import { formatAddress, humanCount, parseAddress, type Family } from '../core/ip';
+import { defaultDnsName, deviceFqdn, dnsState } from '../core/dns';
 import { nextFreeAnywhere } from '../core/ipPlan';
 import { t } from '../i18n';
 import { IconTrash } from '../ui/icons';
@@ -145,6 +146,8 @@ export function DeviceEditor({
   const [tagText, setTagText] = useState(device.tags.join(', '));
   const problems = ipProblems(doc, device);
   const free = nextFreeAnywhere(doc);
+  const dnsZones = dnsState(doc).zones;
+  const fqdn = deviceFqdn(doc, device);
 
   // Теги вводим как обычный текст: иначе запятая сразу «съедалась» split/join.
   useEffect(() => {
@@ -566,6 +569,53 @@ export function DeviceEditor({
                 }}
               />
             </div>
+            <div class="template-form-row" style={{ marginTop: '12px' }}>
+              <div>
+                <label class="field-label" for="device-dns-name">
+                  {t('device.dnsName')}
+                </label>
+                <input
+                  id="device-dns-name"
+                  class="input mono"
+                  value={device.dnsName ?? ''}
+                  placeholder={defaultDnsName(device)}
+                  spellcheck={false}
+                  onInput={(event) =>
+                    update({ dnsName: (event.target as HTMLInputElement).value || undefined })
+                  }
+                />
+              </div>
+              <div>
+                <label class="field-label" for="device-dns-zone">
+                  {t('device.dnsZone')}
+                </label>
+                <select
+                  id="device-dns-zone"
+                  class="input select"
+                  value={device.dnsZoneId ?? ''}
+                  onChange={(event) =>
+                    update({
+                      dnsZoneId: (event.target as HTMLSelectElement).value || null,
+                    })
+                  }
+                >
+                  <option value="">{t('device.dnsDefault')}</option>
+                  {dnsZones.map((zone) => (
+                    <option key={zone.id} value={zone.id}>
+                      {zone.name}
+                      {zone.default ? ' ★' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {fqdn ? (
+              <div class="form-hint">{t('device.dnsHint', { fqdn })}</div>
+            ) : (
+              <div class="form-hint">
+                {dnsZones.length === 0 ? t('device.dnsNoZones') : t('device.dnsHint', { fqdn: '—' })}
+              </div>
+            )}
             <button
               type="button"
               class="btn"

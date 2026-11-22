@@ -34,6 +34,7 @@ import { TemplateEditor } from '../ui/TemplateEditor';
 import { TemplatePicker } from '../ui/TemplatePicker';
 import { CanvasView } from '../canvas/CanvasView';
 import { ChecksTab } from './ChecksTab';
+import { DnsPanel } from './DnsPanel';
 import { DeviceEditor } from './DeviceEditor';
 import { DeviceTable } from './DeviceTable';
 import { PlanTab } from './PlanTab';
@@ -120,6 +121,7 @@ export function ProjectView({
   const [groupName, setGroupName] = useState('');
   const [projectMenu, setProjectMenu] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [dnsOpen, setDnsOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'drawio'>('json');
   const [exportName, setExportName] = useState('');
   const [panel, setPanel] = useState<'devices' | 'plan' | 'checks' | null>(null);
@@ -465,6 +467,9 @@ export function ProjectView({
             <button type="button" onClick={() => { setProjectMenu(false); openExportAs(); }}>
               {t('projects.exportAs')}
             </button>
+            <button type="button" onClick={() => { setProjectMenu(false); setDnsOpen(true); }}>
+              {t('projects.dns')}
+            </button>
             <button type="button" onClick={() => { setProjectMenu(false); onTogglePin(); }}>
               ★ {pinned ? t('projects.unpin') : t('projects.pin')}
             </button>
@@ -630,6 +635,14 @@ export function ProjectView({
           initial={deviceTemplate}
           onSave={(template) => void saveDeviceAsTemplate(template)}
           onClose={() => setDeviceTemplate(null)}
+        />
+      )}
+
+      {dnsOpen && (
+        <DnsPanel
+          doc={doc}
+          onChange={apply}
+          onClose={() => setDnsOpen(false)}
         />
       )}
 
