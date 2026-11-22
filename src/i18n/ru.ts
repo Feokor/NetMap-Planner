@@ -273,6 +273,9 @@ export const ru: Record<string, string> = {
   'device.vlan.remove': 'Удалить VLAN',
   'device.dhcpPool': 'Пул DHCP',
   'device.dnsName': 'DNS-имя',
+  'device.dnsIpName': 'DNS-имя адреса',
+  'device.dnsIpNameHint':
+    'Своё имя для этого адреса: например, docker для 172.16.1.1 и web для 172.16.2.1.',
   'device.dnsZone': 'DNS-зона',
   'device.dnsDefault': 'Зона по умолчанию',
   'device.dnsHint': 'FQDN: {fqdn}. Зоны настраиваются в меню проекта → DNS…',
@@ -525,8 +528,13 @@ export const ru: Record<string, string> = {
     'A/AAAA — адрес; CNAME — имя с точкой; TXT — текст; MX — приоритет и имя, например «10 mail.hq.example.»',
   'dns.recordInvalid': 'Заполните зону, имя и значение',
   'dns.recordInvalidIp': 'Для A нужен IPv4-адрес, для AAAA — IPv6',
+  'dns.recordNameInvalid': 'Имя может содержать латиницу, цифры, дефис и точку',
   'dns.deleteRecordConfirm': 'Удалить запись «{name}»?',
   'dns.hideRecord': 'Скрыть автоматическую запись',
+  'dns.renameRecord': 'Задать DNS-имя для этого адреса',
+  'dns.renameRecordTitle': 'DNS-имя для адреса',
+  'dns.renameHint': 'FQDN: {fqdn}. Имя действует только для этого адреса; пусто — имя устройства.',
+  'dns.resetName': 'Сбросить',
   'dns.hideTitle': 'Скрыть запись',
   'dns.hideHint':
     '«До пересчёта» скроет запись, пока адрес не изменится. «Навсегда» скроет это имя и тип при любом адресе.',

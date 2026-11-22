@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import { downloadText, safeFilename } from '../app/projects';
 import { parseAddress } from '../core/ip';
-import { dnsRecords, dnsState, exportBind, normalizeZoneName, type ForwardRecord } from '../core/dns';
+import { dnsRecords, dnsState, exportBind, normalizeDnsName, normalizeZoneName, type ForwardRecord } from '../core/dns';
 import {
   uid,
   type DnsManualRecord,
@@ -39,6 +39,9 @@ export function DnsPanel({ doc, onChange, onClose }: DnsPanelProps) {
   } | null>(null);
   const [manualError, setManualError] = useState<string | null>(null);
   const [hideTarget, setHideTarget] = useState<ForwardRecord | null>(null);
+  const [renameTarget, setRenameTarget] = useState<ForwardRecord | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   const setZones = (zones: DnsZone[]) =>
     onChange((current) => ({ ...current, dns: { ...dnsState(current), zones } }));
@@ -209,6 +212,46 @@ export function DnsPanel({ doc, onChange, onClose }: DnsPanelProps) {
       const dns = dnsState(current);
       return { ...current, dns: { ...dns, hidden: dns.hidden.filter((item) => item.id !== id) } };
     });
+  };
+
+  const openRenameRecord = (record: ForwardRecord) => {
+    setRenameTarget(record);
+    setRenameValue(record.name);
+    setRenameError(null);
+  };
+
+  const setIpDnsName = (record: ForwardRecord, value: string | undefined) => {
+    onChange((current) => ({
+      ...current,
+      devices: current.devices.map((device) =>
+        device.id !== record.deviceId
+          ? device
+          : {
+              ...device,
+              ports: device.ports.map((port) =>
+                port.id !== record.portId
+                  ? port
+                  : {
+                      ...port,
+                      ips: port.ips.map((ip) =>
+                        ip.id === record.ipId ? { ...ip, dnsName: value } : ip,
+                      ),
+                    },
+              ),
+            },
+      ),
+    }));
+  };
+
+  const saveRenameRecord = (clear = false) => {
+    if (!renameTarget) return;
+    const name = clear ? undefined : normalizeDnsName(renameValue);
+    if (!clear && !name) {
+      setRenameError(t('dns.recordNameInvalid'));
+      return;
+    }
+    setIpDnsName(renameTarget, name);
+    setRenameTarget(null);
   };
 
   const exportTxt = async () => {
@@ -442,14 +485,24 @@ export function DnsPanel({ doc, onChange, onClose }: DnsPanelProps) {
                                       </button>
                                     </div>
                                   ) : (
-                                    <button
-                                      type="button"
-                                      class="btn btn-ghost btn-icon"
-                                      title={t('dns.hideRecord')}
-                                      onClick={() => setHideTarget(record)}
-                                    >
-                                      <IconEyeOff size={13} />
-                                    </button>
+                                    <div class="inline" style={{ gap: '2px' }}>
+                                      <button
+                                        type="button"
+                                        class="btn btn-ghost btn-icon"
+                                        title={t('dns.renameRecord')}
+                                        onClick={() => openRenameRecord(record)}
+                                      >
+                                        <IconEdit size={13} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="btn btn-ghost btn-icon"
+                                        title={t('dns.hideRecord')}
+                                        onClick={() => setHideTarget(record)}
+                                      >
+                                        <IconEyeOff size={13} />
+                                      </button>
+                                    </div>
                                   )}
                                 </td>
                               </tr>
@@ -669,6 +722,51 @@ export function DnsPanel({ doc, onChange, onClose }: DnsPanelProps) {
           <div class="form-hint" style={{ marginTop: '8px' }}>
             {t('dns.hideHint')}
           </div>
+        </Modal>
+      )}
+      {renameTarget && (
+        <Modal
+          title={t('dns.renameRecordTitle')}
+          width="min(460px, 100%)"
+          onClose={() => setRenameTarget(null)}
+          footer={
+            <>
+              <button type="button" class="btn" onClick={() => setRenameTarget(null)}>
+                {t('projects.cancel')}
+              </button>
+              <button type="button" class="btn" onClick={() => saveRenameRecord(true)}>
+                {t('dns.resetName')}
+              </button>
+              <button type="button" class="btn btn-primary" onClick={() => saveRenameRecord()}>
+                {t('projects.save')}
+              </button>
+            </>
+          }
+        >
+          <div class="muted mono" style={{ fontSize: '12.5px' }}>
+            {renameTarget.deviceName} · {renameTarget.value}
+          </div>
+          <label class="field-label" for="dns-rename" style={{ marginTop: '10px' }}>
+            {t('dns.recordName')}
+          </label>
+          <input
+            id="dns-rename"
+            class="input mono"
+            value={renameValue}
+            onInput={(event) => {
+              setRenameValue((event.target as HTMLInputElement).value);
+              setRenameError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') saveRenameRecord();
+            }}
+          />
+          <div class="form-hint" style={{ marginTop: '8px' }}>
+            {t('dns.renameHint', {
+              fqdn: `${normalizeDnsName(renameValue) || '…'}.${renameTarget.zone}`,
+            })}
+          </div>
+          {renameError && <div class="form-error">{renameError}</div>}
         </Modal>
       )}
     </>

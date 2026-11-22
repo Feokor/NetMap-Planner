@@ -126,6 +126,10 @@ npm run dist:linux      # -> release/NetMapPlanner-<версия>-x86_64.AppImag
 npm run android:sync
 npm run android:apk     # -> android/app/build/outputs/apk/debug/app-debug.apk
 
+# Android release: один раз ключ, затем подписанный APK
+npm run android:key
+npm run android:release # -> release/NetMapPlanner-<версия>-release.apk
+
 # перерисовать иконку (build/, public/, Android mipmap) — без внешних зависимостей
 npm run icons
 ```
@@ -156,6 +160,36 @@ npm run tauri:installer  # -> src-tauri/target/release/bundle/nsis
 Tauri хранит данные в `%APPDATA%\ru.vibe.netmap\storage`. При первом запуске проекты из
 папки Electron-версии (`%APPDATA%\vibe-netmap\storage`) копируются автоматически, так что
 переход не теряет карты.
+
+## Подпись релизов
+
+**Android (бесплатно).** Один раз создайте release-ключ:
+
+```powershell
+npm run android:key       # android/keystore/netmap-release.jks + keystore.properties
+npm run android:release   # -> release/NetMapPlanner-<версия>-release.apk
+```
+
+Ключ и пароль лежат только локально (`android/keystore/`, `keystore.properties`) и исключены
+из git. **Сохраните их в надёжном месте**: потеря ключа не позволит обновить уже установленное
+приложение, а утечка — выпускать обновления от вашего имени. Debug- и release-APK имеют разные
+подписи, поэтому release ставится только после удаления debug-версии.
+
+**Windows.** Для настоящего доверия SmartScreen нужен платный OV/EV-сертификат Authenticode;
+самоподписанный сертификат убирает предупреждение только на машинах, где он установлен в
+доверенные. Поэтому сейчас Windows-сборки не подписаны — это ожидаемо для GitHub-раздачи.
+
+## GitHub Actions
+
+В репозитории есть workflow `build` с ручным запуском. Как собрать AppImage:
+
+1. GitHub → **Actions** → **build** → **Run workflow** (ветка `main`).
+2. Дождаться зелёного прогона, скачать артефакт **vibe-netmap-linux** — внутри `.AppImage`.
+3. Там же лежат `vibe-netmap-windows`, `vibe-netmap-android`, `vibe-netmap-tauri`.
+
+Если установлен GitHub CLI: `gh workflow run build.yml`. Для публичного репозитория минуты
+Actions бесплатны; у приватного — ограничены квотой.
+
 
 В git попадают только исходники, конфиги, тесты, CI и скрипты сборки. Не попадают
 `node_modules/`, локальный тулчейн `.tools/`, временные `.tmp/`, собранные `dist/` и
@@ -246,6 +280,17 @@ tests/          vitest: ip, subnet, history, project/plan, canvas
 | **M4** ✅ | PNG/CSV-экспорт, поиск Ctrl+F, хоткеи, связи по портам и мосты (br0), портативный exe Windows (без установщика) |
 | **M5** 🚧 | Android APK (Capacitor) собирается, конфиг Linux AppImage и CI для трёх платформ; осталось: SAF для файлов на Android, подпись релизов |
 | **M6** ✅ | DHCP-пулы, VLAN-сабинтерфейсы, OSPF/BGP на связях, логика мостов, canvas-first панели, мобильные фиксы (safe-area, две строки, pinch, сохранение) |
+
+### Что нового в 0.5.3
+
+- **DNS-имя на конкретный адрес.** У каждого IP в карточке устройства есть своё необязательное
+  DNS-имя: например, `docker` для 172.16.1.1 и `web` для 172.16.2.1. PTR строится по нему же.
+- **Переименование из панели DNS.** У автоматической записи появился карандаш: можно задать
+  имя для этого адреса или сбросить к имени устройства, не открывая карточку.
+- **Телефон: вкладки DNS.** Панель DNS больше не скрывает вкладки на узком экране; таблица
+  записей показывает действия (переименовать/скрыть) и не уезжает вправо.
+- **Подпись Android.** `npm run android:key` создаёт release-ключ, `npm run android:release`
+  собирает подписанный APK; ключ и пароль лежат локально и в git не попадают.
 
 ### Что нового в 0.5.2
 

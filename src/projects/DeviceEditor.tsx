@@ -374,6 +374,21 @@ export function DeviceEditor({
             {subnet && (
               <div class={`form-hint${subnet.warn ? ' form-hint-warn' : ''}`}>{subnet.text}</div>
             )}
+            {ip.role !== 'dhcp' && dnsZones.length > 0 && (
+              <input
+                class="input mono"
+                style={{ marginTop: '4px' }}
+                placeholder={`${t('device.dnsIpName')}: ${defaultDnsName(device)}`}
+                title={t('device.dnsIpNameHint')}
+                value={ip.dnsName ?? ''}
+                spellcheck={false}
+                onInput={(event) =>
+                  updateIp(port.id, ip.id, {
+                    dnsName: (event.target as HTMLInputElement).value || undefined,
+                  })
+                }
+              />
+            )}
             {ip.role === 'dhcp' && (
               <div style={{ marginTop: '6px' }}>
                 <div class="form-hint">{t('device.dhcpOnPort')}</div>

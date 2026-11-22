@@ -74,6 +74,8 @@ export interface IpAssignment {
   prefix: number;
   role: IpRole;
   note?: string;
+  /** Своё DNS-имя именно для этого адреса; иначе имя устройства. */
+  dnsName?: string;
   /** Роль DHCP: начало и конец диапазона выдачи (включительно). Пусто — весь пул. */
   poolFrom?: string;
   poolTo?: string;

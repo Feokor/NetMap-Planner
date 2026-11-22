@@ -15,6 +15,9 @@ export interface ForwardRecord {
   value: string;
   deviceId: string;
   deviceName: string;
+  /** Для авто-записей: порт и адрес, к которым привязана запись. */
+  portId?: string;
+  ipId?: string;
   /** Ручная запись (иначе автоматическая). */
   manual?: boolean;
   /** id ручной записи. */
@@ -163,11 +166,12 @@ export function dnsRecords(doc: ProjectDocument): DnsRecords {
   for (const device of doc.devices) {
     const zone = zoneForDevice(doc, device);
     if (!zone) continue;
-    const name = normalizeDnsName(device.dnsName ?? '') || defaultDnsName(device);
+    const deviceName = normalizeDnsName(device.dnsName ?? '') || defaultDnsName(device);
     for (const port of device.ports) {
       for (const ip of port.ips) {
         if (ip.role === 'dhcp') continue;
         if (!ip.address.trim()) continue;
+        const name = normalizeDnsName(ip.dnsName ?? '') || deviceName;
         try {
           const parsed = parseAddress(ip.address);
           const type = parsed.family === 4 ? 'A' : 'AAAA';
@@ -183,6 +187,8 @@ export function dnsRecords(doc: ProjectDocument): DnsRecords {
             value: ip.address,
             deviceId: device.id,
             deviceName: device.name,
+            portId: port.id,
+            ipId: ip.id,
           });
           if (parsed.family === 4) ipv4Addresses.push(ip.address);
         } catch {

@@ -158,6 +158,19 @@ describe('DNS-зоны', () => {
     expect(text).toContain('@ IN TXT "v=spf1 -all"');
   });
 
+  it('берёт DNS-имя с конкретного адреса', () => {
+    const doc = sample();
+    const device = deviceWithIps('ISP', ['172.16.1.1/30', '172.16.2.1/30']);
+    device.ports[0].ips[0].dnsName = 'docker';
+    device.ports[1].ips[0].dnsName = 'web';
+    const records = dnsRecords(withDevice(doc, device));
+    expect(records.forward.map((item) => `${item.name}=${item.value}`)).toEqual([
+      'docker=172.16.1.1',
+      'web=172.16.2.1',
+    ]);
+    expect(records.reverse).toHaveLength(1);
+  });
+
   it('defaultDns даёт настройки по умолчанию', () => {
     expect(defaultDns().settings.reverseMode).toBe('auto');
     expect(defaultDns().zones).toEqual([]);

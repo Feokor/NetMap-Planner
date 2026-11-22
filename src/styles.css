@@ -1201,10 +1201,9 @@ textarea {
 }
 
 @media (max-width: 620px) {
-  /* На телефоне холст — главный экран: убираем шапку проекта и вкладки,
+  /* На телефоне холст — главный экран: убираем шапку проекта,
      всё остальное открывается кнопками поверх холста. */
-  .project-page.canvas-mode .topbar,
-  .project-page.canvas-mode .tabs {
+  .project-page.canvas-mode .topbar {
     display: none;
   }
 
@@ -2243,6 +2242,7 @@ textarea {
 
 .dns-tabs {
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .dns-pane {
@@ -2365,6 +2365,31 @@ textarea {
   .dns-ptr-row span:nth-child(3),
   .dns-ptr-row span:nth-child(4) {
     grid-column: 1 / -1;
+  }
+
+  /* На телефоне источник и устройство скрываем: важнее значение и кнопки. */
+  .dns-table th:nth-child(4),
+  .dns-table td:nth-child(4) {
+    display: none;
+  }
+
+  .dns-table th,
+  .dns-table td {
+    padding: 6px 4px;
+    font-size: 11.5px;
+  }
+
+  .dns-hidden-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .dns-hidden-row .muted {
+    grid-column: 1 / -1;
+  }
+
+  .dns-tabs .tab {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
 
