@@ -25,6 +25,7 @@ import {
   pointAtFraction,
   portAnchorPoint,
   rectCenter,
+  rectsIntersect,
 } from './geometry';
 import { linkPoints } from './links';
 
@@ -157,6 +158,8 @@ export interface RenderInput {
   selectedAnnotationId?: string | null;
   /** Цвет новых рисунков. */
   annotationColor?: string;
+  /** Направляющие выравнивания при перетаскивании. */
+  guides?: Array<{ axis: 'x' | 'y'; value: number }>;
 }
 
 function roundedPath(
@@ -505,12 +508,26 @@ function drawDevice(
   ctx.restore();
 }
 
-function drawDevices(ctx: CanvasRenderingContext2D, input: RenderInput, pal: Palette): void {
-  for (const device of input.doc.devices) drawDevice(ctx, device, input, pal);
+function drawDevices(
+  ctx: CanvasRenderingContext2D,
+  input: RenderInput,
+  pal: Palette,
+  viewRect: Rect,
+): void {
+  for (const device of input.doc.devices) {
+    // Не рисуем то, что за пределами экрана: на больших схемах это заметно.
+    if (!rectsIntersect(previewRect(device, input.preview), viewRect)) continue;
+    drawDevice(ctx, device, input, pal);
+  }
 }
 
 /** Точки портов на границах узлов: видно, какая связь за какой порт цепляется. */
-function drawPortDots(ctx: CanvasRenderingContext2D, input: RenderInput, pal: Palette): void {
+function drawPortDots(
+  ctx: CanvasRenderingContext2D,
+  input: RenderInput,
+  pal: Palette,
+  viewRect: Rect,
+): void {
   if (input.view.zoom < 0.4) return;
   const byId = new Map(input.doc.devices.map((device) => [device.id, device]));
   const seen = new Set<string>();
@@ -531,6 +548,7 @@ function drawPortDots(ctx: CanvasRenderingContext2D, input: RenderInput, pal: Pa
       seen.add(key);
 
       const rect = previewRect(device, input.preview);
+      if (!rectsIntersect(rect, viewRect)) continue;
       const target = rectCenter(previewRect(otherDevice, input.preview));
       const anchor = portAnchorFor(device, rect, endpoint.portId, target);
       const port = device.ports.find((item) => item.id === endpoint.portId);
@@ -765,20 +783,49 @@ export function renderScene(input: RenderInput): void {
   ctx.translate(view.x, view.y);
   ctx.scale(view.zoom, view.zoom);
 
+  const viewRect: Rect = {
+    x: -view.x / view.zoom,
+    y: -view.y / view.zoom,
+    width: width / view.zoom,
+    height: height / view.zoom,
+  };
+
   if (input.doc.settings.showGrid !== false) drawGrid(ctx, input, pal);
 
   const plan = layerPlan(input.doc.layers);
   for (const layer of plan.layers) {
     if (layer.kind === 'structure') {
       drawLinks(ctx, input, pal);
-      drawDevices(ctx, input, pal);
-      drawPortDots(ctx, input, pal);
+      drawDevices(ctx, input, pal, viewRect);
+      drawPortDots(ctx, input, pal, viewRect);
     } else {
       const items = input.doc.annotations.filter((annotation) => annotation.layerId === layer.id);
       for (const annotation of items) {
+        if (!rectsIntersect(annotationRect(annotation), viewRect)) continue;
         drawAnnotation(ctx, annotation, pal, input.selectedAnnotationId === annotation.id);
       }
     }
+  }
+
+  // Направляющие выравнивания — поверх содержимого, под черновиком.
+  if (input.guides && input.guides.length > 0) {
+    ctx.save();
+    ctx.strokeStyle = pal.accent;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 1 / view.zoom;
+    ctx.setLineDash([6 / view.zoom, 5 / view.zoom]);
+    for (const guide of input.guides) {
+      ctx.beginPath();
+      if (guide.axis === 'x') {
+        ctx.moveTo(guide.value, viewRect.y);
+        ctx.lineTo(guide.value, viewRect.y + viewRect.height);
+      } else {
+        ctx.moveTo(viewRect.x, guide.value);
+        ctx.lineTo(viewRect.x + viewRect.width, guide.value);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // Черновик фигуры и линия будущей связи — всегда сверху.

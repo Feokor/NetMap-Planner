@@ -9,7 +9,6 @@ import {
 import {
   type Device,
   type ProjectDocument,
-  createDevice,
   createGroup,
   deviceGroupIds,
   errorCount,
@@ -19,6 +18,7 @@ import {
   validateProject,
   warningCount,
 } from '../core/project';
+import { DEVICE_TEMPLATES, createFromTemplate, portsLabel, uniqueDeviceName } from '../core/templates';
 import { t } from '../i18n';
 import { IconCheck, IconExpand, IconLayers, IconMenu, IconMore, IconRedo, IconUndo } from '../ui/icons';
 import { Modal } from '../ui/Modal';
@@ -85,15 +85,6 @@ function devicesCsv(doc: ProjectDocument): string {
   return [header, ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n');
 }
 
-function uniqueDeviceName(doc: ProjectDocument, base = 'device'): string {
-  const used = new Set(doc.devices.map((device) => device.name.toLowerCase()));
-  for (let i = 1; i < 10000; i++) {
-    const candidate = `${base}-${i}`;
-    if (!used.has(candidate)) return candidate;
-  }
-  return base;
-}
-
 export function ProjectView({
   projectId,
   onBack,
@@ -112,6 +103,7 @@ export function ProjectView({
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [projectMenu, setProjectMenu] = useState(false);
   const [panel, setPanel] = useState<'devices' | 'plan' | 'checks' | null>(null);
@@ -252,14 +244,18 @@ export function ProjectView({
     onBack();
   };
 
-  const addDevice = () => {
+  const addDevice = (templateId?: string | null) => {
     if (!doc) return;
-    const device: Device = createDevice({
-      name: uniqueDeviceName(doc),
-      kind: 'pc',
-      canvas: { x: 80, y: 80 },
-    });
+    const template = templateId
+      ? DEVICE_TEMPLATES.find((item) => item.id === templateId) ?? null
+      : null;
+    const device: Device = createFromTemplate(
+      template,
+      uniqueDeviceName(doc, template?.id ?? 'device'),
+    );
+    device.canvas = { x: 80, y: 80 };
     apply((current) => ({ ...current, devices: [...current.devices, device] }));
+    setTemplatesOpen(false);
     setEditingId(device.id);
   };
 
@@ -533,7 +529,7 @@ export function ProjectView({
                     >
                       {t('projects.groups')}
                     </button>
-                    <button type="button" class="btn btn-primary" onClick={addDevice}>
+                    <button type="button" class="btn btn-primary" onClick={() => setTemplatesOpen(true)}>
                       ＋ {t('projects.addDevice')}
                     </button>
                   </div>
@@ -573,6 +569,41 @@ export function ProjectView({
           onClose={() => setEditingId(null)}
           onDelete={() => deleteDevice(editing)}
         />
+      )}
+
+      {templatesOpen && (
+        <Modal
+          title={t('templates.title')}
+          onClose={() => setTemplatesOpen(false)}
+          footer={
+            <button type="button" class="btn" onClick={() => setTemplatesOpen(false)}>
+              {t('projects.cancel')}
+            </button>
+          }
+        >
+          <div class="form-hint" style={{ marginBottom: '10px' }}>
+            {t('templates.hint')}
+          </div>
+          <div class="template-grid">
+            <button type="button" class="template-card" onClick={() => addDevice(null)}>
+              <strong>{t('templates.empty')}</strong>
+              <span class="muted">{portsLabel(1)}</span>
+            </button>
+            {DEVICE_TEMPLATES.map((template) => (
+              <button
+                type="button"
+                class="template-card"
+                key={template.id}
+                onClick={() => addDevice(template.id)}
+              >
+                <strong>{t(`devkind.${template.kind}`)}</strong>
+                <span class="muted">
+                  {portsLabel(template.ports.length)} · {template.layer}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {groupOpen && (

@@ -11,13 +11,13 @@ import {
   LINK_MEDIA,
   LINK_PROTOCOLS,
   NOTES_LAYER,
-  createDevice,
   isLogicalPort,
   linkablePorts,
   uid,
 } from '../core/project';
 import { t } from '../i18n';
 import { storage } from '../app/storage';
+import { DEVICE_TEMPLATES, createFromTemplate, portsLabel, uniqueDeviceName } from '../core/templates';
 import { Modal } from '../ui/Modal';
 import {
   IconArrow,
@@ -43,11 +43,13 @@ import {
   IconUnlock,
 } from '../ui/icons';
 import {
+  type AlignmentGuide,
   type CanvasTool,
   type Point,
   type Viewport,
   NODE_HEIGHT,
   NODE_WIDTH,
+  alignmentSnap,
   distanceToPolyline,
   findFreeSpot,
   fitViewport,
@@ -128,15 +130,6 @@ function activeTheme(): ThemeName {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
-function uniqueDeviceName(doc: ProjectDocument, base = 'device'): string {
-  const used = new Set(doc.devices.map((device) => device.name.toLowerCase()));
-  for (let i = 1; i < 10000; i++) {
-    const candidate = `${base}-${i}`;
-    if (!used.has(candidate)) return candidate;
-  }
-  return base;
-}
-
 function normalizeBounds(from: Point, to: Point) {
   return {
     x: Math.min(from.x, to.x),
@@ -175,6 +168,7 @@ export function CanvasView({
   const [media, setMedia] = useState<LinkMedia>('copper');
   const [activeTool, setActiveTool] = useState<CanvasTool>('select');
   const [draft, setDraft] = useState<DraftShape | null>(null);
+  const [guides, setGuides] = useState<AlignmentGuide[]>([]);
   const [preview, setPreview] = useState<Map<string, Point>>(new Map());
   const [theme, setTheme] = useState<ThemeName>(activeTheme);
   const [textEdit, setTextEdit] = useState<TextEditState | null>(null);
@@ -189,6 +183,7 @@ export function CanvasView({
   const [groupOpen, setGroupOpen] = useState<string | null>(null);
   const [hoverTool, setHoverTool] = useState<CanvasTool | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const longPressed = useRef(false);
@@ -350,6 +345,7 @@ export function CanvasView({
       selectedLinkId,
       selectedAnnotationId,
       annotationColor,
+      guides,
     });
   }, [
     doc,
@@ -366,6 +362,7 @@ export function CanvasView({
     selectedLinkId,
     selectedAnnotationId,
     annotationColor,
+    guides,
   ]);
 
   /* ---------------------------------------------------------------- */
@@ -477,7 +474,10 @@ export function CanvasView({
     setTextEdit(null);
   };
 
-  const addDevice = () => {
+  const addDevice = (templateId?: string | null) => {
+    const template = templateId
+      ? DEVICE_TEMPLATES.find((item) => item.id === templateId) ?? null
+      : null;
     const world = screenToWorld(
       { x: size.width / 2, y: size.height / 2 },
       view,
@@ -489,16 +489,17 @@ export function CanvasView({
     const spot = findFreeSpot(doc.devices.map(nodeRect), { width: NODE_WIDTH, height: NODE_HEIGHT }, preferred, {
       step: Math.max(16, doc.settings.grid),
     });
-    const device = createDevice({
-      name: uniqueDeviceName(doc),
-      kind: 'pc',
-      canvas: { x: spot.x, y: spot.y },
-    });
+    const device = createFromTemplate(
+      template,
+      uniqueDeviceName(doc, template?.id ?? 'device'),
+    );
+    device.canvas = { x: spot.x, y: spot.y };
     onChange((current) => ({ ...current, devices: [...current.devices, device] }));
     setSelection([device.id]);
     setSelectedLinkId(null);
     setSelectedAnnotationId(null);
     setActiveTool('select');
+    setAddMenuOpen(false);
   };
 
   const deleteSelection = () => {
@@ -630,7 +631,6 @@ export function CanvasView({
     setDragging(true);
     const world = screenToWorld(screen, view);
     const device = deviceAt(world);
-
     if (activeTool === 'link') {
       if (!device) {
         setLinkSourceId(null);
@@ -747,6 +747,47 @@ export function CanvasView({
     try { canvas.setPointerCapture(event.pointerId); } catch { /* синтетические события без захвата */ }
   };
 
+  /** Позиции при перетаскивании: сетка + выравнивание по соседям. */
+  const computeMove = (
+    startWorld: Point,
+    deviceOrigin: Map<string, Point>,
+    world: Point,
+  ): { positions: Map<string, Point>; guides: AlignmentGuide[] } => {
+    const worldDx = world.x - startWorld.x;
+    const worldDy = world.y - startWorld.y;
+    const grid = doc.settings.snap ? doc.settings.grid : 0;
+    const positions = new Map<string, Point>();
+    for (const [id, origin] of deviceOrigin) {
+      positions.set(id, {
+        x: snap(origin.x + worldDx, grid),
+        y: snap(origin.y + worldDy, grid),
+      });
+    }
+
+    const primaryId = deviceOrigin.keys().next().value as string | undefined;
+    const primaryPoint = primaryId ? positions.get(primaryId) : null;
+    if (!primaryId || !primaryPoint) return { positions, guides: [] };
+
+    const primary = doc.devices.find((device) => device.id === primaryId);
+    const primaryRect = primary
+      ? nodeRect(primary)
+      : { x: primaryPoint.x, y: primaryPoint.y, width: NODE_WIDTH, height: NODE_HEIGHT };
+    const targets = doc.devices
+      .filter((device) => !deviceOrigin.has(device.id))
+      .map(nodeRect);
+    const alignment = alignmentSnap(
+      { ...primaryPoint, width: primaryRect.width, height: primaryRect.height },
+      targets,
+      7 / Math.max(view.zoom, 0.2),
+    );
+    if (alignment.dx !== 0 || alignment.dy !== 0) {
+      for (const [id, point] of positions) {
+        positions.set(id, { x: point.x + alignment.dx, y: point.y + alignment.dy });
+      }
+    }
+    return { positions, guides: alignment.guides };
+  };
+
   const handlePointerMove = (event: PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -793,17 +834,13 @@ export function CanvasView({
     }
 
     if (drag.kind === 'move') {
-      const worldDx = world.x - drag.startWorld.x;
-      const worldDy = world.y - drag.startWorld.y;
-      const grid = doc.settings.snap ? doc.settings.grid : 0;
-      const next = new Map<string, Point>();
-      for (const [id, origin] of drag.deviceOrigin) {
-        next.set(id, {
-          x: snap(origin.x + worldDx, grid),
-          y: snap(origin.y + worldDy, grid),
-        });
-      }
-      setPreview(next);
+      const { positions, guides: nextGuides } = computeMove(
+        drag.startWorld,
+        drag.deviceOrigin,
+        world,
+      );
+      setGuides(nextGuides);
+      setPreview(positions);
       return;
     }
 
@@ -815,6 +852,7 @@ export function CanvasView({
   const handlePointerUp = (event: PointerEvent) => {
     const canvas = canvasRef.current;
     pointersRef.current.delete(event.pointerId);
+    setGuides([]);
     if (pinchRef.current) {
       if (pointersRef.current.size < 2) pinchRef.current = null;
       if (pointersRef.current.size === 0) setDragging(false);
@@ -829,16 +867,7 @@ export function CanvasView({
     if (drag.kind === 'move' && drag.moved) {
       const screen = pointFromEvent(event, canvas);
       const world = screenToWorld(screen, view);
-      const worldDx = world.x - drag.startWorld.x;
-      const worldDy = world.y - drag.startWorld.y;
-      const grid = doc.settings.snap ? doc.settings.grid : 0;
-      const moved = new Map<string, Point>();
-      for (const [id, origin] of drag.deviceOrigin) {
-        moved.set(id, {
-          x: snap(origin.x + worldDx, grid),
-          y: snap(origin.y + worldDy, grid),
-        });
-      }
+      const { positions: moved } = computeMove(drag.startWorld, drag.deviceOrigin, world);
       setPreview(new Map());
       onChange((current) => ({
         ...current,
@@ -1079,18 +1108,6 @@ export function CanvasView({
     const next = !minimapOpen;
     setMinimapOpen(next);
     void storage.set('ui.minimap', next);
-  };
-
-  const annotationLayers = doc.layers.filter((layer) => layer.kind === 'annotation');
-  const drawingsVisible = annotationLayers.some((layer) => layer.visible !== false);
-  const toggleDrawings = () => {
-    const next = !drawingsVisible;
-    onChange((current) => ({
-      ...current,
-      layers: current.layers.map((layer) =>
-        layer.kind === 'annotation' ? { ...layer, visible: next } : layer,
-      ),
-    }));
   };
 
   const toolButton = (tool: CanvasTool, icon: JSX.Element, label: string) => (
@@ -1346,14 +1363,36 @@ export function CanvasView({
       )}
       <div class="canvas-toolbar">
         <div class="canvas-tools">
-          <button
-            type="button"
-            class="btn btn-primary canvas-add"
-            title={t('canvas.addDevice')}
-            onClick={addDevice}
-          >
-            ＋
-          </button>
+          <div class="tool-hold">
+            <button
+              type="button"
+              class="btn btn-primary canvas-add"
+              title={t('canvas.addDevice')}
+              onClick={() => setAddMenuOpen((value) => !value)}
+            >
+              ＋
+            </button>
+            {addMenuOpen && (
+              <div class="tool-pop" role="menu">
+                <button
+                  type="button"
+                  onClick={() => addDevice(null)}
+                >
+                  {t('templates.empty')}
+                </button>
+                {DEVICE_TEMPLATES.map((template) => (
+                  <button
+                    type="button"
+                    key={template.id}
+                    onClick={() => addDevice(template.id)}
+                  >
+                    {t(`devkind.${template.kind}`)}
+                    <span class="muted">{portsLabel(template.ports.length)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div class="canvas-sep" />
           {toolButton('select', <IconCursor size={15} />, t('canvas.tool.select'))}
           {toolButton('link', <IconLink size={15} />, t('canvas.tool.link'))}
@@ -1535,10 +1574,6 @@ export function CanvasView({
               >
                 <IconMap size={14} /> {t('canvas.minimap')}
               </button>
-              <button type="button" onClick={toggleDrawings}>
-                {drawingsVisible ? <IconEyeOff size={14} /> : <IconEye size={14} />}{' '}
-                {drawingsVisible ? t('canvas.drawings.hide') : t('canvas.drawings.show')}
-              </button>
             </div>
           )}
         </div>
@@ -1622,7 +1657,7 @@ export function CanvasView({
           <div class="canvas-empty">
             <h3>{t('canvas.empty.title')}</h3>
             <div>{t('canvas.empty.text')}</div>
-            <button type="button" class="btn btn-primary" onClick={addDevice}>
+            <button type="button" class="btn btn-primary" onClick={() => addDevice(null)}>
               ＋ {t('canvas.addDevice')}
             </button>
           </div>

@@ -57,6 +57,13 @@
 
 html,
 body,
+html {
+  font-family: var(--font);
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 #root {
   height: 100%;
 }
@@ -71,6 +78,7 @@ body {
   background-image: var(--bg-glow);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -3335,13 +3343,41 @@ textarea {
   }
 }
 
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.template-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.template-card .muted {
+  font-size: 11.5px;
+}
+
 .group-manage-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.group-manage-row {
+}.group-manage-row {
   display: flex;
   align-items: center;
   gap: 6px;

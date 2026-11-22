@@ -424,3 +424,54 @@ export function layerById(layers: Layer[], id: string | undefined): Layer | null
 export function isLayerLocked(layers: Layer[], id: string | undefined): boolean {
   return layerById(layers, id)?.locked === true;
 }
+
+export interface AlignmentGuide {
+  axis: 'x' | 'y';
+  /** Мировая координата линии. */
+  value: number;
+}
+
+export interface AlignmentResult {
+  dx: number;
+  dy: number;
+  guides: AlignmentGuide[];
+}
+
+/**
+ * Привязка к краям и центрам соседних узлов: ищет ближайшее совпадение
+ * в пределах threshold и возвращает сдвиг + линии-направляющие.
+ */
+export function alignmentSnap(
+  rect: Rect,
+  targets: Rect[],
+  threshold: number,
+): AlignmentResult {
+  const xCandidates = [rect.x, rect.x + rect.width / 2, rect.x + rect.width];
+  const yCandidates = [rect.y, rect.y + rect.height / 2, rect.y + rect.height];
+  let bestX: { diff: number; value: number } | null = null;
+  let bestY: { diff: number; value: number } | null = null;
+
+  for (const target of targets) {
+    for (const value of [target.x, target.x + target.width / 2, target.x + target.width]) {
+      for (const candidate of xCandidates) {
+        const diff = value - candidate;
+        if (Math.abs(diff) <= threshold && (!bestX || Math.abs(diff) < Math.abs(bestX.diff))) {
+          bestX = { diff, value };
+        }
+      }
+    }
+    for (const value of [target.y, target.y + target.height / 2, target.y + target.height]) {
+      for (const candidate of yCandidates) {
+        const diff = value - candidate;
+        if (Math.abs(diff) <= threshold && (!bestY || Math.abs(diff) < Math.abs(bestY.diff))) {
+          bestY = { diff, value };
+        }
+      }
+    }
+  }
+
+  const guides: AlignmentGuide[] = [];
+  if (bestX) guides.push({ axis: 'x', value: bestX.value });
+  if (bestY) guides.push({ axis: 'y', value: bestY.value });
+  return { dx: bestX?.diff ?? 0, dy: bestY?.diff ?? 0, guides };
+}

@@ -162,6 +162,8 @@ export const ru: Record<string, string> = {
   'projects.new': 'Новый проект',
   'projects.importCsvName': 'Импорт CSV',
   'projects.import': 'Импорт',
+  'projects.backup': 'Бэкап',
+  'projects.backupHint': 'Скачать все проекты одним JSON-файлом',
   'projects.dropHint': 'Отпустите файл, чтобы импортировать JSON-карту или CSV',
   'projects.export': 'Экспорт',
   'projects.exportCsv': 'CSV',
@@ -454,13 +456,15 @@ export const ru: Record<string, string> = {
   'canvas.searchResults': 'Результаты ({n})',
   'canvas.minimap': 'Мини-карта',
   'canvas.minimap.hint': 'Мини-карта: клик или перетаскивание центрирует холст',
-  'canvas.drawings.hide': 'Скрыть рисунки',
-  'canvas.drawings.show': 'Показать рисунки',
   'canvas.autoLayout': 'Авто-раскладка',
   'canvas.autoLayout.confirm':
     'Разложить устройства по уровням связей? Отменить можно через Ctrl+Z.',
   'canvas.type.device': 'Устройство',
   'canvas.type.link': 'Связь',
+
+  'templates.title': 'Новое устройство',
+  'templates.empty': 'Пустое устройство',
+  'templates.hint': 'Пресет сразу создаёт типовые порты и слой — останется назначить адреса.',
 
   'common.delete': 'Удалить',
   'common.add': 'Добавить',

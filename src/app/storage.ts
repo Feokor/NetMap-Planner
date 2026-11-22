@@ -91,6 +91,11 @@ if (isTauri && !window.vibe) {
   };
 }
 
+if (isTauri) {
+  // Иначе WebView2 показывает меню браузера («Обновить», «Печать» и т.п.).
+  window.addEventListener('contextmenu', (event) => event.preventDefault());
+}
+
 const webStorage: StorageApi = {
   async get<T>(key: string): Promise<T | null> {
     try {

@@ -138,6 +138,38 @@ export function ProjectsView({
     }
   };
 
+  /** Резервная копия всех проектов одним файлом. */
+  const exportBackup = async () => {
+    try {
+      const projects = [];
+      for (const entry of entries) {
+        const doc = await loadProject(entry.id);
+        if (doc) projects.push(doc);
+      }
+      const backup = {
+        schema: 'netmap-backup',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        projects,
+      };
+      const date = new Date().toISOString().slice(0, 10);
+      await downloadText(`netmap-backup-${date}.json`, JSON.stringify(backup, null, 2));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  const importBackup = async (projects: unknown[]) => {
+    let lastId: string | null = null;
+    for (const raw of projects) {
+      const doc = importAsNewProject(raw);
+      await saveProject(doc);
+      lastId = doc.id;
+    }
+    onRefresh();
+    if (lastId) onOpen(lastId);
+  };
+
   const importJson = async (text: string) => {
     const raw = JSON.parse(text);
     const doc = importAsNewProject(raw);
@@ -157,6 +189,11 @@ export function ProjectsView({
     const base = fileName.replace(/\.[^.]+$/, '').trim();
     const looksLikeJson = text.trimStart().startsWith('{') || text.trimStart().startsWith('[');
     if (looksLikeJson) {
+      const raw = JSON.parse(text);
+      if (raw && raw.schema === 'netmap-backup' && Array.isArray(raw.projects)) {
+        await importBackup(raw.projects);
+        return;
+      }
       await importJson(text);
     } else {
       await importCsv(text, base || t('projects.importCsvName'));
@@ -233,6 +270,14 @@ export function ProjectsView({
               if (file) void importFile(file);
             }}
           />
+          <button
+            type="button"
+            class="btn"
+            title={t('projects.backupHint')}
+            onClick={() => void exportBackup()}
+          >
+            {t('projects.backup')}
+          </button>
           <button type="button" class="btn" onClick={() => void startImport()}>
             {t('projects.import')}
           </button>
